@@ -1,3 +1,19 @@
+# qand-app (Confectionery Ordering)
+
+[![Stars](https://img.shields.io/github/stars/Alvandcode/qand-app?style=flat-square)](https://github.com/Alvandcode/qand-app/stargazers) [![License](https://img.shields.io/github/license/Alvandcode/qand-app?style=flat-square)](./LICENSE) [![Last commit](https://img.shields.io/github/last-commit/Alvandcode/qand-app?style=flat-square)](https://github.com/Alvandcode/qand-app/commits)
+
+> Flutter ordering app for a confectionery (Android 7-17) with Supabase backend — categories, order form, receipt upload, admin panel.
+
+<div dir="rtl">
+
+## اپ سفارش قنادی قند
+
+اپلیکیشن سفارش قنادی با فلاتر برای اندروید ۷ تا ۱۷ با بک‌اند سوپابیس؛ دسته‌بندی محصولات، فرم سفارش، آپلود فیش و پنل مدیریت.
+
+</div>
+
+---
+
 # قنادی قند 🍰 — qand-app
 
 اپ اندروید (7 تا 17) سفارش قنادی با Flutter + Supabase.
@@ -38,3 +54,19 @@ flutter run --dart-define=SUPABASE_URL=https://xyz.supabase.co --dart-define=SUP
 
 ## عکس‌ها
 ببین: `assets/README_ASSETS.md`
+
+---
+
+## Contributing / مشارکت
+
+- EN: Issues and Pull Requests are welcome. Please see `CONTRIBUTING.md`.
+- FA: برای گزارش مشکل یا پیشنهاد قابلیت جدید، لطفا ایشو یا پول‌ریکوئست ثبت کنید.
+
+## License / لایسنس
+
+MIT — see [LICENSE](./LICENSE).
+
+## Contact / ارتباط
+
+- Telegram: https://t.me/a_c_official
+- Website: https://alvandcode.github.io
