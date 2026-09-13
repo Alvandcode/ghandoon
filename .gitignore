@@ -17,10 +17,15 @@ android/app/release/
 # Dart
 .pub-cache/
 .pub/
-pubspec.lock
+# NOTE: برای اپ (نه پکیج) pubspec.lock باید کامیت شود تا بیلد CI تکرارپذیر باشد.
 
 # Supabase local
 .supabase/
+
+# Android release signing — هرگز کامیت نشود
+android/key.properties
+*.jks
+*.keystore
 
 # OS
 .DS_Store

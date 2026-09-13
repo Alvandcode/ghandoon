@@ -62,7 +62,8 @@ class QandTheme {
       gradient: const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFFE63946), Color(0xFFD62828), Color(0xFFFF8A5C)],
+        // بالا نارنجی → پایین قرمز
+        colors: [Color(0xFFFF8A5C), Color(0xFFE63946), Color(0xFFD62828)],
       ),
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(radius)),
     );

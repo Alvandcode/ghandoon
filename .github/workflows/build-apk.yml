@@ -20,11 +20,33 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.32.8
       - run: flutter --version
+      # اگر اسکافولد اندروید ناقص است فقط فایل‌های گمشده را بساز.
+      # بدون --overwrite تا فایل‌های سفارشی (Manifest/build.gradle/styles) دست‌نخورده بمانند.
+      # شرط: wrapper یا آیکون‌ها یا res نباشد (gradle.properties دستی ما نباید باعث skip شود)
+      - name: Ensure Android scaffolding (missing files only)
+        run: |
+          if [ ! -f "android/gradlew" ] || [ ! -d "android/app/src/main/res/mipmap-hdpi" ] || [ ! -d "android/gradle/wrapper" ] || [ ! -f "android/app/src/main/res/values/styles.xml" ]; then
+            flutter create . --org com.qand --project-name qand_app --platforms android
+            git diff --stat || true
+          else
+            echo "Android scaffolding OK, skipping flutter create."
+          fi
       - run: flutter pub get
-      - run: flutter create . --org com.qand --project-name qand_app --platforms android || true
-      - run: flutter analyze || true
+      # تحلیل استاتیک باید سبز باشد؛ خطا = فیل شدن بیلد
+      - run: flutter analyze
+      - run: flutter test --reporter expanded
+      - name: Decode release keystore (optional)
+        # فقط اگر secrets را در Settings > Secrets گذاشته باشی اجرا می‌شود، وگرنه با کلید دیباگ بیلد می‌گیرد.
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/qand-release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/qand-release.jks"
+            echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+            echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}"
+            echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}"
+          } > android/key.properties
       - run: flutter build apk --release --verbose
       - uses: actions/upload-artifact@v4
         with:
@@ -35,5 +57,5 @@ jobs:
         with:
           tag_name: latest
           name: "قنادی قند - آخرین نسخه"
-          body: "APK آماده نصب (اندروید 7 تا 17). بیلد خودکار از main."
+          body: "APK آماده نصب (اندروید 7 تا 15). بیلد خودکار از main."
           files: qand-app.apk

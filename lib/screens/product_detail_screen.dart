@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../models/product.dart';
+import '../utils/format.dart';
+import '../widgets/product_image.dart';
 import 'order_form_screen.dart';
 import 'chat_screen.dart';
 
@@ -9,7 +11,7 @@ class ProductDetailScreen extends StatelessWidget {
   final String username;
   const ProductDetailScreen({super.key, required this.product, required this.username});
 
-  String _toman(int v) => '${v.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')} تومان';
+  String _toman(int v) => formatToman(v);
 
   @override
   Widget build(BuildContext context) {
@@ -28,8 +30,14 @@ class ProductDetailScreen extends StatelessWidget {
               const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Image.asset(product.asset, height: 200, width: double.infinity, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(height: 200, color: Colors.white24, child: const Center(child: Text('🧁', style: TextStyle(fontSize: 80))))),
+                child: ProductImage(
+                  asset: product.asset,
+                  imageUrl: product.imageUrl,
+                  height: 200,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  iconSize: 80,
+                ),
               ),
             ]),
           ),

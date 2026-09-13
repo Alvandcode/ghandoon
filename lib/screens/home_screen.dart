@@ -3,6 +3,8 @@ import '../theme/qand_theme.dart';
 import '../data/demo_products.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
+import '../services/product_repository.dart';
+import '../widgets/product_image.dart';
 import 'product_detail_screen.dart';
 import 'track_order_screen.dart';
 import 'chat_screen.dart';
@@ -19,12 +21,34 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selected = 0;
   int _tab = 0;
+  bool _isAdmin = false;
+  // لیست محصولات: پیش‌فرض دمو تا سوپابیس جواب بده؛ هیچ‌وقت خالی نمی‌ماند
+  List<Product> _products = demoProducts;
 
-  Product get current => demoProducts[_selected];
+  @override
+  void initState() {
+    super.initState();
+    // نقش فقط از AuthService (نه مقایسه رشته username) تا با دست‌کاری
+    // آرگومان HomeScreen نتوان نقش مدیر را جعل کرد.
+    AuthService().isAdmin().then((v) {
+      if (!mounted) return;
+      setState(() => _isAdmin = v);
+    });
+    // محصولات سرور (با fallback دمو) — بدون بلاک کردن UI
+    ProductRepository().loadActive().then((list) {
+      if (!mounted) return;
+      if (list.isEmpty) return;
+      setState(() {
+        _products = list;
+        _selected = _selected.clamp(0, _products.length - 1);
+      });
+    });
+  }
+
+  Product get current => _products[_selected.clamp(0, _products.length - 1)];
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = widget.username == 'admin';
     return Scaffold(
       body: _tab == 0 ? _homeBody() : _tab == 1
           ? TrackOrderScreen(username: widget.username)
@@ -40,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _nav(Icons.home, 0),
             _nav(Icons.receipt_long, 1),
             _nav(Icons.chat_bubble_outline, 2),
-            if (isAdmin) _nav(Icons.admin_panel_settings_outlined, 3),
+            if (_isAdmin) _nav(Icons.admin_panel_settings_outlined, 3),
             IconButton(onPressed: _logout, icon: const Icon(Icons.logout, color: Colors.grey)),
           ],
         ),
@@ -74,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 6),
             const Text('امروز چی برات بپزم؟', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
-            Image.asset('assets/logo/chef.png', height: 190, errorBuilder: (_, __, ___) =>
+            Image.asset('assets/images/chef.png', height: 190, errorBuilder: (_, __, ___) =>
               Container(height: 190, width: 190, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
                 child: const Center(child: Text('👩‍🍳', style: TextStyle(fontSize: 90))))),
           ]),
@@ -94,10 +118,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       reverse: true,
-                      itemCount: demoProducts.length,
+                      itemCount: _products.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 10),
                       itemBuilder: (_, i) {
-                        final p = demoProducts[i];
+                        final p = _products[i];
                         final on = i == _selected;
                         return GestureDetector(
                           onTap: () => setState(() => _selected = i),
@@ -109,8 +133,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 border: Border.all(color: on ? QandTheme.red : Colors.grey.shade200, width: on ? 3 : 1),
                                 color: QandTheme.cream,
                               ),
-                              child: ClipOval(child: Image.asset(p.asset, fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Center(child: Text(p.title.characters.first)))),
+                              child: ClipOval(
+                                child: ProductImage(
+                                  asset: p.asset,
+                                  imageUrl: p.imageUrl,
+                                  width: on ? 76 : 66,
+                                  height: on ? 76 : 66,
+                                  fit: BoxFit.cover,
+                                  iconSize: 28,
+                                ),
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Text(p.title, style: TextStyle(fontSize: 12, fontWeight: on ? FontWeight.bold : FontWeight.normal, color: on ? QandTheme.red : Colors.black87)),

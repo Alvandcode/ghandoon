@@ -13,6 +13,9 @@ class QandOrder {
   final int totalPrice;
   final String? receiptPath;
   final String createdAt;
+  /// نام‌کاربری ثبت‌کننده سفارش (برای تفکیک سفارش هر کاربر).
+  /// سفارش‌های قدیمی ممکن است خالی باشد ('') — برای سازگاری نگه داشته می‌شود.
+  final String owner;
 
   const QandOrder({
     required this.id,
@@ -29,6 +32,7 @@ class QandOrder {
     required this.totalPrice,
     this.receiptPath,
     required this.createdAt,
+    this.owner = '',
   });
 
   QandOrder copyWith({String? status, String? receiptPath, int? totalPrice}) {
@@ -47,6 +51,7 @@ class QandOrder {
       totalPrice: totalPrice ?? this.totalPrice,
       receiptPath: receiptPath ?? this.receiptPath,
       createdAt: createdAt,
+      owner: owner,
     );
   }
 }
@@ -81,7 +86,7 @@ class OrderStatuses {
     }
   }
 
-  static List<String> flow = [
+  static const List<String> flow = [
     pending,
     awaitingPayment,
     receiptSent,

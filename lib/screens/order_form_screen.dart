@@ -1,8 +1,11 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:shamsi_date/shamsi_date.dart';
 import '../theme/qand_theme.dart';
 import '../models/product.dart';
 import '../models/order.dart';
 import '../services/order_service.dart';
+import '../utils/format.dart';
 import 'track_order_screen.dart';
 
 class OrderFormScreen extends StatefulWidget {
@@ -30,31 +33,44 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   }
 
   Future<void> _pickDate() async {
+    final now = DateTime.now();
+    // شروع امروز (بدون ساعت) تا انتخاب «امروز» هم همیشه ممکن باشد؛
+    // قبلا firstDate با ساعت فعلی بود و در ساعات پایانی روز، امروز غیرقابل انتخاب می‌شد.
+    final today = DateTime(now.year, now.month, now.day);
     final d = await showDatePicker(
       context: context,
-      initialDate: _date,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
+      initialDate: _date.isBefore(today) ? today : _date,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 90)),
     );
     if (d != null) setState(() => _date = d);
+  }
+
+  /// تاریخ شمسی به فرمت 1405/06/20
+  String _jalali(DateTime d) {
+    final j = Jalali.fromDateTime(d);
+    return '${j.year}/${j.month.toString().padLeft(2, '0')}/${j.day.toString().padLeft(2, '0')}';
   }
 
   Future<void> _submit() async {
     if (!_formKeyValid()) return;
     final order = QandOrder(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      // شناسه یکتا: میلی‌ثانیه + عدد تصادفی تا دو سفارش هم‌زمان هم تداخل نکنند.
+      // قبلا فقط millisecondsSinceEpoch بود و در ثبت سریع پشت‌سرهم احتمال تصادم داشت.
+      id: '${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(1 << 32)}',
       productId: widget.product.id,
       productTitle: widget.product.title,
       qty: _qty,
       persons: _persons,
       fullName: _name.text.trim(),
-      phone: _phone.text.trim(),
+      phone: normalizeDigits(_phone.text.trim()),
       address: _address.text.trim(),
-      deliveryDate: '${_date.year}/${_date.month.toString().padLeft(2, '0')}/${_date.day.toString().padLeft(2, '0')}',
+      deliveryDate: _jalali(_date),
       note: _note.text.trim(),
       status: OrderStatuses.pending,
       totalPrice: widget.product.price * _qty,
       createdAt: DateTime.now().toIso8601String(),
+      owner: widget.username,
     );
     await OrderService().add(order);
     if (!mounted) return;
@@ -64,8 +80,16 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
 
   bool _formKeyValid() {
     if (!_form.currentState!.validate()) return false;
-    if (!RegExp(r'^09\d{9}$').hasMatch(_phone.text.trim())) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره تماس باید مثل 09130000000 باشد')));
+    if (!isValidIranMobile(_phone.text)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره تماس باید مثل 09130000000 باشد (ارقام فارسی هم قبول است)')));
+      return false;
+    }
+    // تاریخ نباید در گذشته باشد (اگر کاربر خیلی دیر ثبت کند)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final picked = DateTime(_date.year, _date.month, _date.day);
+    if (picked.isBefore(today)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تاریخ تحویل نمی‌تواند در گذشته باشد')));
       return false;
     }
     return true;
@@ -87,24 +111,25 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
         child: ListView(padding: const EdgeInsets.all(16), children: [
           _counter('تعداد سفارش', _qty, (v) => setState(() => _qty = v)),
           _counter('تعداد نفرات', _persons, (v) => setState(() => _persons = v), min: 1, max: 200),
-          _field(_name, 'نام و نام خانوادگی', Icons.person, need: true),
-          _field(_phone, 'شماره تماس (09...)', Icons.phone, kb: TextInputType.phone, need: true),
-          _field(_address, 'آدرس دقیق محل دریافت', Icons.location_on, lines: 2, need: true),
+          _field(_name, 'نام و نام خانوادگی', Icons.person, need: true, minLen: 3, maxLen: 80),
+          _field(_phone, 'شماره تماس (09...)', Icons.phone, kb: TextInputType.phone, need: true, maxLen: 15),
+          // آدرس دقیق باید واقعا دقیق باشد؛ حداقل ۱۰ کاراکتر تا «تهران» خالی قبول نشود
+          _field(_address, 'آدرس دقیق محل دریافت', Icons.location_on, lines: 2, need: true, minLen: 10, maxLen: 500),
           ListTile(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade200)),
             tileColor: Colors.white,
             leading: const Icon(Icons.calendar_month, color: QandTheme.red),
             title: const Text('تاریخ دریافت سفارش'),
-            subtitle: Text('${_date.year}/${_date.month}/${_date.day}'),
+            subtitle: Text(_jalali(_date)),
             trailing: const Icon(Icons.edit),
             onTap: _pickDate,
           ),
           const SizedBox(height: 12),
-          _field(_note, 'توضیح اضافه (اختیاری)', Icons.note_alt_outlined, lines: 2),
+          _field(_note, 'توضیح اضافه (اختیاری)', Icons.note_alt_outlined, lines: 2, maxLen: 500),
           const SizedBox(height: 12),
           Container(padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: QandTheme.cream, borderRadius: BorderRadius.circular(16)),
-            child: Text('مبلغ تقریبی: ${(widget.product.price * _qty).toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')} تومان\nمبلغ نهایی را مدیر اعلام می‌کند.',
+            child: Text('مبلغ تقریبی: ${formatToman(widget.product.price * _qty)}\nمبلغ نهایی را مدیر اعلام می‌کند.',
               style: const TextStyle(fontWeight: FontWeight.bold))),
           const SizedBox(height: 14),
           ElevatedButton(onPressed: _submit, child: const Text('ارسال سفارش')),
@@ -113,13 +138,20 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String h, IconData ic, {bool need = false, int lines = 1, TextInputType? kb}) {
+  Widget _field(TextEditingController c, String h, IconData ic, {bool need = false, int lines = 1, TextInputType? kb, int minLen = 0, int maxLen = 500}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
-        controller: c, maxLines: lines, keyboardType: kb,
-        decoration: InputDecoration(labelText: h, prefixIcon: Icon(ic)),
-        validator: need ? (v) => (v == null || v.trim().isEmpty) ? 'این فیلد لازم است' : null : null,
+        controller: c, maxLines: lines, keyboardType: kb, maxLength: maxLen,
+        decoration: InputDecoration(labelText: h, prefixIcon: Icon(ic), counterText: ''),
+        validator: need
+            ? (v) {
+                final t = (v ?? '').trim();
+                if (t.isEmpty) return 'این فیلد لازم است';
+                if (t.length < minLen) return 'حداقل $minLen کاراکتر وارد کن';
+                return null;
+              }
+            : null,
       ),
     );
   }

@@ -30,3 +30,8 @@ flutter:
   assets:
     - assets/images/
     - assets/logo/
+
+  fonts:
+    - family: Vazirmatn
+      fonts:
+        - asset: assets/fonts/Vazirmatn.ttf

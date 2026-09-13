@@ -23,10 +23,14 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() => _loading = true);
-    _orders = await OrderService().all();
-    _orders = _orders.reversed.toList();
-    setState(() => _loading = false);
+    final orders = await OrderService().all(forUser: widget.username);
+    if (!mounted) return;
+    setState(() {
+      _orders = orders.reversed.toList();
+      _loading = false;
+    });
   }
 
   @override
@@ -54,6 +58,11 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
 
   Widget _card(QandOrder o) {
     final idx = OrderStatuses.flow.indexOf(o.status);
+    final isCancelled = o.status == OrderStatuses.cancelled;
+    final isPending = o.status == OrderStatuses.pending;
+    // تا مدیر مبلغ را اعلام نکرده، پرداخت معنایی ندارد — دکمه را قفل کن
+    // تا کاربر اشتباهی با مبلغ تقریبی کارت‌به‌کارت نکند.
+    final canPay = !isPending && !isCancelled;
     return Card(
       margin: const EdgeInsets.only(bottom: 14),
       child: Padding(
@@ -69,23 +78,38 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
           Text('تعداد: ${o.qty} | نفرات: ${o.persons} | تحویل: ${o.deliveryDate}', style: const TextStyle(fontSize: 13, color: Colors.black54)),
           Text('آدرس: ${o.address}', style: const TextStyle(fontSize: 13, color: Colors.black54)),
           const SizedBox(height: 10),
-          // تایم‌لاین ساده
+          // تایم‌لاین ساده (برای لغوشده خاکستری کامل)
           Wrap(spacing: 6, runSpacing: 6, children: [
             for (var s = 0; s < OrderStatuses.flow.length; s++)
               Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: s <= idx ? QandTheme.red : Colors.grey.shade200,
+                  color: (!isCancelled && idx >= 0 && s <= idx) ? QandTheme.red : Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(10)),
                 child: Text(OrderStatuses.fa(OrderStatuses.flow[s]).split('،').first,
-                  style: TextStyle(fontSize: 10, color: s <= idx ? Colors.white : Colors.black54))),
+                  style: TextStyle(fontSize: 10, color: (!isCancelled && idx >= 0 && s <= idx) ? Colors.white : Colors.black54))),
           ]),
           const SizedBox(height: 10),
+          if (isPending)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(12)),
+              child: const Text('⏳ سفارشت ثبت شد؛ منتظر اعلام مبلغ توسط مدیر باش. بعد از اعلام، دکمه پرداخت فعال می‌شود.',
+                  style: TextStyle(fontSize: 12)),
+            ),
           Row(children: [
             Expanded(
               child: ElevatedButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentScreen(order: o))).then((_) => _load()),
+                onPressed: canPay
+                    ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentScreen(order: o))).then((_) => _load())
+                    : null,
                 style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(46)),
-                child: const Text('پرداخت / ارسال فیش'),
+                child: Text(isCancelled
+                    ? 'لغو شده'
+                    : isPending
+                        ? 'منتظر اعلام مبلغ...'
+                        : 'پرداخت / ارسال فیش'),
               ),
             ),
             const SizedBox(width: 8),

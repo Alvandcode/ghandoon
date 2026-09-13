@@ -1,0 +1,6 @@
+# نمونه فایل امضای ریلیز — کپی کن به key.properties (همین پوشه android/) و مقادیر واقعی را بگذار.
+# این فایل هرگز نباید کامیت شود (در .gitignore است).
+storeFile=/absolute/path/to/qand-release.jks
+storePassword=CHANGE_ME
+keyAlias=qand
+keyPassword=CHANGE_ME

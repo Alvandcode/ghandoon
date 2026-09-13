@@ -13,23 +13,45 @@ class _AuthScreenState extends State<AuthScreen> {
   final _user = TextEditingController();
   final _pass = TextEditingController();
   bool _isLogin = true;
+  bool _busy = false;
   String? _err;
 
+  @override
+  void dispose() {
+    _user.dispose();
+    _pass.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
+    if (_busy) return;
+    // نام‌کاربری نرمال می‌شود؛ رمز عمدا trim نمی‌شود (فاصله جزئی از رمز است)
     final u = _user.text.trim();
-    final p = _pass.text.trim();
+    final p = _pass.text;
     if (u.length < 3 || p.length < 4) {
       setState(() => _err = 'نام کاربری حداقل ۳ و رمز حداقل ۴ کاراکتر');
       return;
     }
-    final s = AuthService();
-    final ok = _isLogin ? await s.login(u, p) : await s.register(u, p);
-    if (!mounted) return;
-    if (!ok) {
-      setState(() => _err = _isLogin ? 'ورود ناموفق بود' : 'این نام کاربری قبلا ثبت شده');
-      return;
+    setState(() {
+      _busy = true;
+      _err = null;
+    });
+    try {
+      final s = AuthService();
+      final ok = _isLogin ? await s.login(u, p) : await s.register(u, p);
+      if (!mounted) return;
+      if (!ok) {
+        setState(() => _err = _isLogin
+            ? 'ورود ناموفق بود؛ نام کاربری یا رمز را بررسی کن'
+            : (u.toLowerCase() == 'admin'
+                ? 'این نام کاربری رزرو شده است'
+                : 'این نام کاربری قبلا ثبت شده'));
+        return;
+      }
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen(username: u)));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomeScreen(username: u)));
   }
 
   @override
@@ -64,7 +86,9 @@ class _AuthScreenState extends State<AuthScreen> {
                       Text(_err!, style: const TextStyle(color: Colors.red)),
                     ],
                     const SizedBox(height: 16),
-                    ElevatedButton(onPressed: _submit, child: Text(_isLogin ? 'ورود' : 'ساخت حساب')),
+                    ElevatedButton(onPressed: _busy ? null : _submit, child: _busy
+                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text(_isLogin ? 'ورود' : 'ساخت حساب')),
                     TextButton(
                       onPressed: () => setState(() => _isLogin = !_isLogin),
                       child: Text(_isLogin ? 'حساب نداری؟ ثبت‌نام کن' : 'حساب داری؟ وارد شو'),

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'theme/qand_theme.dart';
+import 'services/supabase_service.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // اگر کلید سوپابیس داده شده باشد وصل شو، وگرنه آفلاین ادامه بده
+  await SupabaseService.initIfConfigured();
   runApp(const QandApp());
 }
 
