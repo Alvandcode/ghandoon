@@ -27,31 +27,11 @@ android {
         multiDexEnabled = true
     }
 
-    signingConfigs {
-        // اگر فایل key.properties کنار این build.gradle باشد (بیلد محلی ریلیز)،
-        // از کی‌استور واقعی استفاده می‌شود. نمونه: key.properties.example
-        release {
-            def keystorePropertiesFile = rootProject.file("key.properties")
-            if (keystorePropertiesFile.exists()) {
-                def keystoreProperties = new Properties()
-                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-                storeFile file(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
-            }
-        }
-    }
-
     buildTypes {
         release {
-            // پیش‌فرض CI: اگر key.properties نبود، با کلید دیباگ امضا کن تا بیلد نخوابد.
-            // فایل key.properties در .gitignore است و هرگز کامیت نمی‌شود.
-            try {
-                signingConfig = signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug
-            } catch (Exception ignored) {
-                signingConfig = signingConfigs.debug
-            }
+            // پیش‌فرض CI: با کلید دیباگ امضا کن تا بیلد نخوابد.
+            // برای انتشار واقعی: android/key.properties.example را به key.properties کپی کنید.
+            signingConfig = signingConfigs.debug
         }
     }
 }
