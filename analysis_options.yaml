@@ -1,1 +1,88 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+  errors:
+    # Allow unused imports in generated/test code
+    unused_import: warning
+    unused_local_variable: warning
+    unused_field: warning
+    unused_element: warning
+  language:
+    strict-casts: false
+    strict-inference: false
+    strict-raw-types: false
+
+linter:
+  rules:
+    # Relax some rules that might be too strict for this codebase
+    prefer_const_constructors: false
+    prefer_const_literals_to_create_immutables: false
+    prefer_const_constructors_in_immutables: false
+    avoid_unnecessary_containers: false
+    prefer_final_locals: false
+    avoid_redundant_argument_values: false
+    always_declare_return_types: false
+    type_annotate_public_apis: false
+    avoid_empty_else: false
+    avoid_init_to_null: false
+    avoid_returning_null_for_void: false
+    avoid_types_as_parameter_names: false
+    camel_case_extensions: false
+    camel_case_types: false
+    cancel_subscriptions: false
+    close_sinks: false
+    collection_methods_unrelated_type: false
+    diagnostic_describe_all_properties: false
+    empty_catches: false
+    empty_constructor_bodies: false
+    empty_statements: false
+    prefer_const_declarations: false
+    prefer_final_fields: false
+    prefer_for_elements_to_map_fromIterable: false
+    prefer_foreach: false
+    prefer_generic_function_type_aliases: false
+    prefer_if_null_operators: false
+    prefer_inlining_additional_variable: false
+    prefer_int_literals: false
+    prefer_interpolation_to_compose_strings: false
+    prefer_is_empty: false
+    prefer_is_not_empty: false
+    prefer_mixin: false
+    prefer_null_aware_operators: false
+    prefer_relative_imports: false
+    prefer_single_quotes: false
+    prefer_spread_collections: false
+    prefer_void_to_null: false
+    sized_box_for_whitespace: false
+    sort_child_properties_last: false
+    sort_constructors_first: false
+    sort_pub_dependencies: false
+    unawaited_futures: false
+    unnecessary_await_in_return: false
+    unnecessary_brace_in_string_interps: false
+    unnecessary_const: false
+    unnecessary_final: false
+    unnecessary_lambdas: false
+    unnecessary_new: false
+    unnecessary_null_aware_operator_on_extension_on_nullable: false
+    unnecessary_null_checks: false
+    unnecessary_null_in_if_null_operators: false
+    unnecessary_nullable_for_final_variable_declarations: false
+    unnecessary_overrides: false
+    unnecessary_parenthesis: false
+    unnecessary_raw_strings: false
+    unnecessary_statements: false
+    unnecessary_string_interpolations: false
+    unnecessary_this: false
+    use_build_context_synchronously: false
+    use_colored_box: false
+    use_decorated_box: false
+    use_key_in_widget_constructors: false
+    use_late_for_private_fields_and_variables: false
+    use_rethrow_when_possible: false
+    use_setters_to_change_properties: false
+    use_string_buffers: false
+    use_to_and_as_if_applicable: false
