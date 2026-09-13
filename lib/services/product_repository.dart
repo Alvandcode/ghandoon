@@ -20,8 +20,8 @@ class ProductRepository {
           .select()
           .eq('is_active', true)
           .order('created_at', ascending: true);
-      final list = (rows as List)
-          .map((e) => Product.fromMap(Map<String, dynamic>.from(e as Map)))
+      final list = (rows as List<dynamic>)
+          .map((e) => Product.fromMap(Map<String, dynamic>.from(e as Map<String, dynamic>)))
           .where((p) => p.title.isNotEmpty)
           .toList();
       // جدول خالی = احتمالا سید اجرا نشده؛ دمو را نشان بده تا فروشنده گیج نشود
