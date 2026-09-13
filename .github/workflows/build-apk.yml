@@ -38,14 +38,24 @@ jobs:
       - run: flutter test --reporter expanded
       - name: Decode release keystore (optional)
         # فقط اگر secrets را در Settings > Secrets گذاشته باشی اجرا می‌شود، وگرنه با کلید دیباگ بیلد می‌گیرد.
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        # نکته: secrets را نمی‌شود مستقیم در if گذاشت (خطای اعتبارسنجی)؛ پس همیشه اجرا
+        # می‌شود ولی داخل اسکریپت اگر خالی بود skip می‌کند.
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/qand-release.jks"
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "No release keystore secret; building with debug key."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/qand-release.jks"
           {
             echo "storeFile=$RUNNER_TEMP/qand-release.jks"
-            echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
-            echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}"
-            echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}"
+            echo "storePassword=$KEYSTORE_PASS"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASS"
           } > android/key.properties
       - run: flutter build apk --release --verbose
       - uses: actions/upload-artifact@v4
