@@ -26,7 +26,10 @@ jobs:
       # شرط: wrapper یا آیکون‌ها یا res نباشد (gradle.properties دستی ما نباید باعث skip شود)
       - name: Ensure Android scaffolding (missing files only)
         run: |
-          if [ ! -f "android/gradlew" ] || [ ! -d "android/app/src/main/res/mipmap-hdpi" ] || [ ! -d "android/gradle/wrapper" ] || [ ! -f "android/app/src/main/res/values/styles.xml" ]; then
+          # فقط اگر فایل‌های حیاتی نداریم flutter create می‌زنیم.
+          # gradle/wrapper توسط flutter create ساخته می‌شود و وجود/عدم وجودش
+          # معیار نباید باشد چون ما gradle.properties و res/values/styles.xml را داریم.
+          if [ ! -f "android/gradlew" ] || [ ! -d "android/app/src/main/res/mipmap-hdpi" ] || [ ! -f "android/app/src/main/res/values/styles.xml" ] || [ ! -f "android/gradle.properties" ]; then
             flutter create . --org com.qand --project-name qand_app --platforms android
             git diff --stat || true
           else
