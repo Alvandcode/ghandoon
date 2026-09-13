@@ -24,17 +24,12 @@ jobs:
       # اگر اسکافولد اندروید ناقص است فقط فایل‌های گمشده را بساز.
       # بدون --overwrite تا فایل‌های سفارشی (Manifest/build.gradle/styles) دست‌نخورده بمانند.
       # شرط: wrapper یا آیکون‌ها یا res نباشد (gradle.properties دستی ما نباید باعث skip شود)
-      - name: Ensure Android scaffolding (missing files only)
+      - name: Ensure Android scaffolding (always run to generate missing files)
         run: |
-          # فقط اگر فایل‌های حیاتی نداریم flutter create می‌زنیم.
-          # gradle/wrapper توسط flutter create ساخته می‌شود و وجود/عدم وجودش
-          # معیار نباید باشد چون ما gradle.properties و res/values/styles.xml را داریم.
-          if [ ! -f "android/gradlew" ] || [ ! -d "android/app/src/main/res/mipmap-hdpi" ] || [ ! -f "android/app/src/main/res/values/styles.xml" ] || [ ! -f "android/gradle.properties" ]; then
-            flutter create . --org com.qand --project-name qand_app --platforms android
-            git diff --stat || true
-          else
-            echo "Android scaffolding OK, skipping flutter create."
-          fi
+          # همیشه flutter create می‌زنیم تا فایل‌های گمشده (gradle/wrapper, gradlew, mipmapها) ساخته شوند.
+          # بدون --overwrite تا فایل‌های سفارشی (Manifest/build.gradle/styles) دست‌نخورده بمانند.
+          flutter create . --org com.qand --project-name qand_app --platforms android
+          git diff --stat || true
       - run: flutter pub get
       # تست‌ها - فعلاً skip تا بیلد بررسی شود
       # - run: flutter test --reporter expanded
