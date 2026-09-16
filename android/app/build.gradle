@@ -4,6 +4,17 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// امضای ریلیز:
+// 1) اگر android/key.properties موجود باشد (بیلد محلی یا CI) از آن استفاده می‌شود.
+// 2) در نبود آن، بیلد release با کلید دیباگ امضا می‌شود (نصب مستقیم OK، انتشار استور نه)
+//    و یک هشدار واضح در لاگ بیلد چاپ می‌شود.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+def hasKeystoreFile = keystorePropertiesFile.exists()
+if (hasKeystoreFile) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace = "com.qand.app"
     compileSdk = 35
@@ -27,11 +38,30 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        if (hasKeystoreFile) {
+            release {
+                storeFile = file(keystoreProperties['storeFile'])
+                storePassword = keystoreProperties['storePassword']
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // پیش‌فرض CI: با کلید دیباگ امضا کن تا بیلد نخوابد.
-            // برای انتشار واقعی: android/key.properties.example را به key.properties کپی کنید.
-            signingConfig = signingConfigs.debug
+            if (hasKeystoreFile) {
+                signingConfig = signingConfigs.release
+            } else {
+                // هشدار: بدون keystore واقعی، با کلید دیباگ امضا می‌شود.
+                println("WARNING: android/key.properties not found -> release APK will be signed with the DEBUG key (not store-ready).")
+                signingConfig = signingConfigs.debug
+            }
+            // کوچک‌سازی و بهینه‌سازی بیلد ریلیز
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

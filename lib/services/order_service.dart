@@ -4,6 +4,7 @@ import '../models/order.dart';
 import '../utils/format.dart';
 
 /// ذخیره سفارش‌ها فعلا لوکال (لیست JSON). با اتصال سوپابیس همین متدها به جدول orders وصل می‌شوند.
+/// (نکته: تا مهاجرت به Supabase Auth، سفارش‌ها فقط روی دستگاهِ ثبت‌کننده دیده می‌شوند.)
 class OrderService {
   static const _k = 'qand_orders';
 
@@ -40,7 +41,14 @@ class OrderService {
     await p.setStringList(_k, raw);
   }
 
-  Future<void> updateStatus(String id, String status, {String? receiptPath, int? totalPrice}) async {
+  /// نتیجه‌ی آپدیت وضعیت — تا UI بتواند خطای واقعی را نشان دهد نه پیام موفقیت کورکورانه.
+  /// (از رشته استفاده می‌کنیم تا مدل ساده بماند.)
+  static const updateOk = 'ok';
+  static const updateNotFound = 'not_found';
+  static const updateBadStatus = 'bad_status';
+  static const updateBadPrice = 'bad_price';
+
+  Future<String> updateStatus(String id, String status, {String? receiptPath, int? totalPrice}) async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getStringList(_k) ?? [];
     final list = <QandOrder>[];
@@ -52,8 +60,8 @@ class OrderService {
       }
     }
     final i = list.indexWhere((e) => e.id == id);
-    if (i == -1) return;
-    if (totalPrice != null && totalPrice <= 0) return;
+    if (i == -1) return updateNotFound;
+    if (totalPrice != null && totalPrice <= 0) return updateBadPrice;
     // اعتبارسنجی وضعیت: فقط وضعیت‌های شناخته‌شده قبول است تا تایپو باعث گم‌شدن سفارش نشود
     const valid = {
       OrderStatuses.pending,
@@ -64,9 +72,10 @@ class OrderService {
       OrderStatuses.delivered,
       OrderStatuses.cancelled,
     };
-    if (!valid.contains(status)) return;
+    if (!valid.contains(status)) return updateBadStatus;
     list[i] = list[i].copyWith(status: status, receiptPath: receiptPath, totalPrice: totalPrice);
     await p.setStringList(_k, list.map(_encode).toList());
+    return updateOk;
   }
 
   /// یک سفارش با شناسه (برای رفرش صفحه پرداخت بعد از اعلام مبلغ توسط مدیر).

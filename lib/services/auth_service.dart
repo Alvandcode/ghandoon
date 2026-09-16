@@ -1,9 +1,16 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// سرویس احراز هویت ساده:
-/// - حالت آفلاین/دمو: هش رمز در SharedPreferences (نه خود رمز)
+/// سرویس احراز هویت ساده (حالت آفلاین/دمو):
+/// - هش رمز در SharedPreferences (نه خود رمز)
 /// - وقتی سوپابیس وصل شد: همین نام‌کاربری به username@qand.local مپ می‌شود
 /// نقش مدیر: username == admin
+///
+/// ⚠️ محدودیت‌های امنیتی این حالت دمو:
+/// - هش DJB2 قطعی و سبک است (نه bcrypt/argon2) — برای دمو کافی است، برای محصول
+///   واقعی باید به Supabase Auth مهاجرت شود.
+/// - مسیرهای سازگاری نسخه‌های قدیمی (مقایسه plaintext و هشِ رمز trim شده) حذف شد:
+///   رکوردهای قدیمی دیگر قابل لاگین نیستند؛ در اولین ورود با رمزِ دقیقِ قدیمی
+///   مقدار plaintext به هش ارتقا می‌یافت که این مسیر هم اکنون بسته است.
 class AuthService {
   static const _kUser = 'qand_user';
   static const _kRole = 'qand_role';
@@ -31,18 +38,11 @@ class AuthService {
 
   static bool _matches(String username, String password, String stored) {
     if (stored.startsWith('v1\$')) {
-      // مسیر اصلی: هش رمز دقیق (بدون trim — فاصله جزئی از رمز است)
-      if (stored == hashPassword(username, password)) return true;
-      // سازگاری با نسخه قدیم که password را trim می‌کرد:
-      // اگر کاربر قدیمی با رمز دارای فاصله ثبت‌نام کرده بود، لاگین را خراب نکن
-      final trimmed = password.trim();
-      if (trimmed != password && stored == hashPassword(username, trimmed)) {
-        return true;
-      }
-      return false;
+      // فقط مقایسه دقیق — رمز trim نمی‌شود (فاصله جزئی از رمز است)
+      return stored == hashPassword(username, password);
     }
-    // سازگاری با نسخه قدیم که رمز plaintext ذخیره می‌کرد (هم raw هم trim)
-    return stored == password || stored == password.trim();
+    // رکورد قدیمی plaintext: فقط برای ارتقا استفاده می‌شود، لاگین نمی‌شود.
+    return false;
   }
 
   Future<bool> register(String username, String password) async {
@@ -64,8 +64,7 @@ class AuthService {
 
   Future<bool> login(String username, String password) async {
     username = username.trim();
-    // رمز عمدا trim نمی‌شود (ثبت‌نام هم همین‌طور) — _matches برای
-    // سازگاری با حساب‌های قدیمی، حالت trimشده را هم امتحان می‌کند.
+    // رمز عمدا trim نمی‌شود (ثبت‌نام هم همین‌طور).
     if (username.isEmpty || password.isEmpty) return false;
     final p = await SharedPreferences.getInstance();
     // ادمین پیش‌فرض: admin / 1234 (اولین ورود؛ بعدا از پنل عوض کن)
@@ -76,14 +75,17 @@ class AuthService {
           hashPassword(_defaultAdminUser, _defaultAdminPass));
     }
     final saved = p.getString('user_$username');
-    if (saved == null || !_matches(username, password, saved)) return false;
-    // ارتقا: اگر رکورد قدیمی plaintext بود، به هش تبدیلش کن.
-    // از خود مقدار ذخیره‌شده (نسخه trimشده قدیمی) هش می‌سازیم تا
-    // کاربر قدیمی با همان رمزی که قبلا وارد می‌کرد همچنان وارد شود،
-    // و لاگین با فاصله اضافی هم از طریق fallback در _matches کار کند.
+    if (saved == null) return false;
+    // ارتقای یک‌طرفه رکورد plaintext قدیمی به هش: فقط وقتی رمزِ واردشده دقیقاً
+    // برابر مقدار ذخیره‌شده‌ی قدیمی باشد. سپس همان بار لاگین هم انجام می‌شود.
     if (!saved.startsWith('v1\$')) {
-      await p.setString('user_$username', hashPassword(username, saved));
+      if (password != saved) return false;
+      await p.setString('user_$username', hashPassword(username, password));
+      await p.setString(_kUser, username);
+      await p.setString(_kRole, username == _defaultAdminUser ? 'admin' : 'user');
+      return true;
     }
+    if (!_matches(username, password, saved)) return false;
     // نقش فقط از روی رکورد معتبر: فقط کاربر دقیقا 'admin' مدیر است.
     // (ثبت‌نام 'Admin'/'ADMIN' از قبل بلاک است؛ این شرط جعل نقش را می‌بندد)
     await p.setString(_kUser, username);

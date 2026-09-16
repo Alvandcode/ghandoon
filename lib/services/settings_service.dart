@@ -2,13 +2,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import 'supabase_service.dart';
 
-/// تنظیمات قابل ویرایش توسط مدیر از داخل اپ:
-/// شماره کارت + صاحب حساب + لینک زرین‌پال
+/// تنظیمات عمومی (شماره کارت + صاحب حساب + لینک زرین‌پال)
 ///
-/// استراتژی دو‌لایه (بدون کرش در هر حالت):
-/// 1. اگر سوپابیس وصل است: خواندن/نوشتن از جدول `app_settings` (ردیف id=1).
+/// ⚠️ این سرویس فقط-خواندنی است:
+/// تغییر شماره کارت/زرین‌پال فقط از داشبورد سوپابیس (با service_role) انجام شود.
+/// قبلاً upsert از کلاینت انجام می‌شد که با anon key داخل APK یعنی هر کسی
+/// می‌توانست شماره کارت را عوض کند (ریسک تقلب مالی) — این مسیر حذف شد.
+///
+/// استراتژی خواندن (بدون کرش در هر حالت):
+/// 1. اگر سوپابیس وصل است: خواندن از جدول `app_settings` (ردیف id=1).
 /// 2. همیشه آینه لوکال در SharedPreferences تا آفلاین هم کار کند.
 /// 3. در هر خطای شبکه، نسخه لوکال برگردانده می‌شود.
+///
+/// متد [save] فقط آینه لوکال را به‌روز می‌کند (فقط برای حالت دموی آفلاین/توسعه
+/// بدون سوپابیس به کار می‌رود) و هرگز به سرور چیزی نمی‌نویسد.
 class SettingsService {
   static const _kCard = 'set_card';
   static const _kOwner = 'set_owner';
@@ -54,23 +61,16 @@ class SettingsService {
     };
   }
 
-  Future<void> save({required String card, required String owner, required String zarin}) async {
+  /// فقط آینه لوکال (حالت دمو/آفلاین). وقتی سوپابیس وصل است نوشتن از کلاینت
+  /// ممکن نیست (RLS) و نباید هم باشد؛ سرچشمه‌ی حقیقت داشبورد سوپابیس است.
+  Future<void> saveLocalMirror({
+    required String card,
+    required String owner,
+    required String zarin,
+  }) async {
     final p = await SharedPreferences.getInstance();
     await p.setString(_kCard, card);
     await p.setString(_kOwner, owner);
     await p.setString(_kZarin, zarin);
-    // تلاش برای همگام‌سازی با سرور؛ شکست = فقط لوکال (آفلاین) بدون خطا به کاربر
-    final client = SupabaseService.clientOrNull();
-    if (client == null) return;
-    try {
-      await client.from('app_settings').upsert({
-        'id': 1,
-        'card_number': card,
-        'card_owner': owner,
-        'zarinpal_link': zarin,
-      });
-    } catch (_) {
-      // نادیده: لوکال ذخیره شده و اپ ادامه می‌دهد
-    }
   }
 }

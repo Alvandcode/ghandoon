@@ -24,6 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isAdmin = false;
   // لیست محصولات: پیش‌فرض دمو تا سوپابیس جواب بده؛ هیچ‌وقت خالی نمی‌ماند
   List<Product> _products = demoProducts;
+  // «سوپابیس وصل است ولی فروشگاه خالی» — جدا از حالت آفلاین
+  bool _supabaseEmpty = false;
 
   @override
   void initState() {
@@ -34,18 +36,25 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() => _isAdmin = v);
     });
-    // محصولات سرور (با fallback دمو) — بدون بلاک کردن UI
-    ProductRepository().loadActive().then((list) {
+    // محصولات سرور — بدون بلاک کردن UI
+    ProductRepository().loadActiveWithSource().then((r) {
       if (!mounted) return;
-      if (list.isEmpty) return;
       setState(() {
-        _products = list;
-        _selected = _selected.clamp(0, _products.length - 1);
+        // فروشگاه واقعی (حتی خالی) را نشان بده؛ دمو فقط وقتی که آفلاین/خطا هستیم
+        _products = r.products;
+        _supabaseEmpty = r.source == ProductSource.supabaseEmpty;
+        if (_products.isNotEmpty) {
+          _selected = _selected.clamp(0, _products.length - 1);
+        }
       });
     });
   }
 
-  Product get current => _products[_selected.clamp(0, _products.length - 1)];
+  // وقتی لیست خالی است (فروشگاه سوپابیسی خالی) current استفاده نمی‌شود؛
+  // ولی برای اطمینان از نبود ArgumentError در clamp، fallback دمو می‌دهیم.
+  Product get current => _products.isEmpty
+      ? demoProducts.first
+      : _products[_selected.clamp(0, _products.length - 1)];
 
   @override
   Widget build(BuildContext context) {
@@ -151,19 +160,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                   ),
-                  Container(
-                    margin: const EdgeInsets.symmetric(vertical: 10),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(color: QandTheme.cream, borderRadius: BorderRadius.circular(20)),
-                    child: Text('✨ ${current.title} تازه و خونگی', style: const TextStyle(fontSize: 13)),
-                  ),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: current, username: widget.username))),
-                      child: const Text('ادامه'),
+                  if (_supabaseEmpty)
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(20)),
+                      child: const Text('🛒 فعلاً محصولی برای فروش فعال نیست؛ بعداً سر بزن.', style: const TextStyle(fontSize: 13)),
                     ),
-                  ),
+                  if (!_supabaseEmpty) ...[
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(color: QandTheme.cream, borderRadius: BorderRadius.circular(20)),
+                      child: Text('✨ ${current.title} تازه و خونگی', style: const TextStyle(fontSize: 13)),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: current, username: widget.username))),
+                        child: const Text('ادامه'),
+                      ),
+                    ),
+                  ],
                 ]),
               ),
             ),

@@ -21,23 +21,25 @@ jobs:
         with:
           channel: stable
       - run: flutter --version
-      # اگر اسکافولد اندروید ناقص است فقط فایل‌های گمشده را بساز.
-      # بدون --overwrite تا فایل‌های سفارشی (Manifest/build.gradle/styles) دست‌نخورده بمانند.
-      # شرط: wrapper یا آیکون‌ها یا res نباشد (gradle.properties دستی ما نباید باعث skip شود)
+      # اسکافولد اندروید ناقص را کامل کن (wrapper, mipmapها). بدون --overwrite
+      # تا فایل‌های سفارشی (Manifest/build.gradle/styles) دست‌نخورده بمانند.
       - name: Ensure Android scaffolding (always run to generate missing files)
         run: |
-          # همیشه flutter create می‌زنیم تا فایل‌های گمشده (gradle/wrapper, gradlew, mipmapها) ساخته شوند.
-          # بدون --overwrite تا فایل‌های سفارشی (Manifest/build.gradle/styles) دست‌نخورده بمانند.
           flutter create . --org com.qand --project-name qand_app --platforms android
+          # flutter create فایل قالبی test/widget_test.dart می‌سازد که به MyApp
+          # ارجاع می‌دهد (وجود ندارد) و analyze/test را قرمز می‌کند — حذفش کن.
+          rm -f test/widget_test.dart
           git diff --stat || true
       - run: flutter pub get
+      # تست‌ها و تحلیل — دوباره فعال شد (قبلاً برای دیباگ بیلد skip شده بود و برنگشته بود)
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test --reporter expanded
       - run: flutter clean
-      # تست‌ها - فعلاً skip تا بیلد بررسی شود
-      # - run: flutter test --reporter expanded
       - name: Decode release keystore (optional)
-        # فقط اگر secrets را در Settings > Secrets گذاشته باشی اجرا می‌شود، وگرنه با کلید دیباگ بیلد می‌گیرد.
-        # نکته: secrets را نمی‌شود مستقیم در if گذاشت (خطای اعتبارسنجی)؛ پس همیشه اجرا
-        # می‌شود ولی داخل اسکریپت اگر خالی بود skip می‌کند.
+        # فقط اگر secrets را در Settings > Secrets گذاشته باشی اجرا می‌شود؛ key.properties
+        # توسط build.gradle خوانده می‌شود و در نبودش بیلد با کلید دیباگ + هشدار انجام می‌شود.
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -55,15 +57,20 @@ jobs:
             echo "keyAlias=$KEY_ALIAS"
             echo "keyPassword=$KEY_PASS"
           } > android/key.properties
-      - run: flutter build apk --release --verbose
+      - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: qand-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+      # ریلیز نسخه‌دار: هر push به main یک تگ متفاوت می‌گیرد تا ریلیز قبلی
+      # بازنویسی نشود (قبلاً همیشه تگ latest روی هم کپی می‌شد).
+      - name: Compute release tag
+        id: tag
+        run: echo "name=v$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - run: cp build/app/outputs/flutter-apk/app-release.apk qand-app.apk
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: "قنادی قند - آخرین نسخه"
-          body: "APK آماده نصب (اندروید 7 تا 15). بیلد خودکار از main."
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: "قنادی قند — ${{ steps.tag.outputs.name }}"
+          body: "APK آماده نصب (اندروید ۷ تا ۱۵). بیلد خودکار از main."
           files: qand-app.apk

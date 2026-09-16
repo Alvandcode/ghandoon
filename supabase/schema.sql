@@ -1,5 +1,15 @@
--- سوپابیس قنادی قند — v1
--- این فایل را در SQL Editor سوپابیس اجرا کن
+-- سوپابیس قنادی قند — v2 (امن‌شده)
+-- این فایل را در SQL Editor سوپابیس اجرا کن (اجرای چندباره امن است؛ سید تکراری نمی‌سازد)
+--
+-- ⚠️ امنیت — چه چیزی عوض شد:
+-- نسخه‌های قبلی پالیسی‌های «open for all» داشتند که با anon key داخل APK هر کسی
+-- می‌توانست همه سفارش‌ها/پیام‌ها را بخواند و حتی شماره کارت را عوض کند.
+-- حالا:
+--   * پالیسی‌های باز قبلی به‌صورت idempotent DROP می‌شوند.
+--   * products و app_settings: فقط خواندن عمومی؛ نوشتن فقط با service_role
+--     (تغییر شماره کارت/زرین‌پال فقط از داشبورد سوپابیس انجام شود، نه از اپ).
+--   * profiles / orders / messages: فعلاً هیچ پالیسی کلاینتی ندارند (فقط service_role)
+--     چون احراز هویت هنوز لوکال است. بعد از مهاجرت به Supabase Auth، بلوک v3 پایین را فعال کن.
 
 create table if not exists profiles (
   id uuid primary key default gen_random_uuid(),
@@ -73,59 +83,55 @@ insert into products (title, category, description, ingredients, price, unit) va
 ('کیک تولد اختصاصی', 'کیک تولد', 'کیک چندطبقه با دیزاین دلخواه', 'کیک شکلاتی/وانیلی، خامه، میوه فصل', 650000, 'پایه (2 کیلویی)')
 on conflict (title) do nothing;
 
--- Storage buckets (از داشبورد Storage بساز): product-images (public) ، receipts (private)
--- هشدار امنیتی: پالیسی‌های «open all for v1» زیر فقط برای نمونه اولیه/دمو هستند!
--- هر کسی که ANON KEY را داشته باشد می‌تواند همه سفارش‌ها/پیام‌ها را بخواند و بنویسد.
--- برای محصول واقعی، آن‌ها را حذف و نسخه سفت‌وسخت (v2) پایین را فعال کن.
--- RLS را بعدا برای production سفت کن؛ برای شروع:
+-- ============ RLS ============
+
 alter table profiles enable row level security;
 alter table products enable row level security;
 alter table orders enable row level security;
 alter table messages enable row level security;
 alter table app_settings enable row level security;
 
-create policy "public read products" on products for select using (true);
--- دمو v1: نوشتن محصول با anon-key (تا پنل/سید بدون service_role کار کند).
--- در production حتما DROP شود و نوشتن فقط با service_role انجام شود.
-create policy "open products write v1" on products for all using (true) with check (true);
-create policy "open all for v1" on profiles for all using (true) with check (true);
-create policy "open all orders v1" on orders for all using (true) with check (true);
-create policy "open all msgs v1" on messages for all using (true) with check (true);
-create policy "open settings v1" on app_settings for all using (true) with check (true);
+-- حذف پالیسی‌های باز نسخه‌های قبلی (اجرای چندباره امن است)
+drop policy if exists "open products write v1" on products;
+drop policy if exists "open all for v1" on profiles;
+drop policy if exists "open all orders v1" on orders;
+drop policy if exists "open all msgs v1" on messages;
+drop policy if exists "open settings v1" on app_settings;
 
--- ============ نسخه سفت‌وسخت پیشنهادی برای production (v2) ============
--- طرز استفاده: اول 5 پالیسی open بالا را DROP کن، بعد این بلوک را اجرا کن.
--- پیش‌نیاز: احراز هویت Supabase Auth فعال باشد و user_id سفارش = auth.uid().
+-- products: خواندن عمومی؛ نوشتن فقط service_role (پنل ادمین/سید)
+drop policy if exists "public read products" on products;
+create policy "public read products" on products for select using (true);
+
+-- app_settings: خواندن عمومی (شماره کارت/زرین‌پال برای نمایش لازم است)؛ نوشتن فقط service_role
+drop policy if exists "settings read for all" on app_settings;
+create policy "settings read for all" on app_settings for select using (true);
+
+-- profiles / orders / messages: تا مهاجرت به Supabase Auth هیچ پالیسی کلاینتی ندارند.
+-- RLS فعال با صفر پالیسی یعنی anon/authenticated هیچ دسترسی‌ای ندارند؛
+-- فقط service_role بایپس می‌کند. اپ فعلاً سفارش/چت را لوکال نگه می‌دارد.
+
+-- Storage buckets (از داشبورد Storage بساز): product-images (public) ، receipts (private)
+--   product-images: خواندن عمومی؛ آپلود فقط service_role.
+--   receipts: خصوصی؛ بعد از Auth هر کاربر فقط مسیر user_id/ خودش (بلوک v3).
+
+-- ============ v3 — بعد از مهاجرت به Supabase Auth این بلوک را فعال کن ============
+-- پیش‌نیاز: ورود/ثبت‌نام با supabase.auth و user_id سفارش = auth.uid().
 --
--- drop policy if exists "open products write v1" on products;
--- drop policy if exists "open all for v1" on profiles;
--- drop policy if exists "open all orders v1" on orders;
--- drop policy if exists "open all msgs v1" on messages;
--- drop policy if exists "open settings v1" on app_settings;
+-- create policy "profiles self read upsert" on profiles
+--   for all using (auth.uid() = id) with check (auth.uid() = id);
 --
--- -- همه می‌توانند تنظیمات عمومی (شماره کارت/زرین‌پال) را بخوانند، فقط سرویس‌رول بنویسد:
--- create policy "settings read for all" on app_settings
---   for select using (true);
---
--- -- محصولات فعال برای همه قابل خواندن:
--- -- (پالیسی "public read products" بالا کافی است؛ نوشتن فقط با service_role)
---
--- -- سفارش: هر کاربر فقط سفارش خودش (user_id = auth.uid())؛ مدیر با service_role همه را می‌بیند:
 -- create policy "orders owner read" on orders
 --   for select using (auth.uid() = user_id);
 -- create policy "orders owner insert" on orders
 --   for insert with check (auth.uid() = user_id);
--- create policy "orders owner update own pending" on orders
+-- create policy "orders owner update own" on orders
 --   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 --
--- -- پیام‌ها: فقط فرستنده/گیرنده:
 -- create policy "msgs participant read" on messages
 --   for select using (auth.uid() = sender_id or auth.uid() = receiver_id);
 -- create policy "msgs sender insert" on messages
 --   for insert with check (auth.uid() = sender_id);
 --
--- -- Storage: باکت product-images عمومی‌خوانا؛ آپلود فقط service_role (از پنل مدیر با سرویسی‌کی).
--- -- باکت receipts خصوصی: هر کاربر فقط مسیر user_id/ خودش.
--- -- (از داشبورد Storage > Policies اعمال کن)
--- -- storage.objects select: bucket_id = 'product-images' → allow public read
--- -- storage.objects insert/update/delete on 'receipts' → allow where auth.uid()::text = (storage.foldername(name))[1]
+-- Storage باکت receipts (خصوصی): هر کاربر فقط پوشه‌ی خودش:
+--   storage.objects select/insert where bucket_id='receipts'
+--     and auth.uid()::text = (storage.foldername(name))[1]

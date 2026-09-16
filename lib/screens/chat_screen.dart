@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/qand_theme.dart';
 import '../config/app_config.dart';
+import '../services/supabase_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -19,6 +20,8 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<Map<String, dynamic>> _msgs = [
     {'me': false, 't': 'سلام! به قنادی قند خوش اومدی 🌸 سوالت رو بپرس، مدیر جواب میده.'},
   ];
+  // شفاف‌سازی: چت هنوز به سرور وصل نیست (پیام زنده بعد از اتصال جدول messages).
+  bool get _isDemo => SupabaseService.clientOrNull() == null;
 
   @override
   void initState() {
@@ -124,9 +127,9 @@ class _ChatScreenState extends State<ChatScreen> {
             IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_forward, color: Colors.white)),
             const CircleAvatar(backgroundColor: Colors.white, child: Text('👩‍🍳')),
             const SizedBox(width: 8),
-            const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('مدیر قنادی قند', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              Text('آنلاین', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('مدیر قنادی قند', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text(_isDemo ? 'حالت دمو — پیام‌ها هنوز به مدیر نمی‌رسند' : 'آنلاین', style: const TextStyle(color: Colors.white70, fontSize: 12)),
             ]),
             const Spacer(),
             IconButton(onPressed: _call, icon: const Icon(Icons.call, color: Colors.white)),

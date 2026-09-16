@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/order_service.dart';
 import '../services/settings_service.dart';
 import '../services/product_repository.dart';
+import '../services/supabase_service.dart';
 import '../data/demo_products.dart';
 import '../utils/format.dart';
 
@@ -49,7 +50,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final admin = await AuthService().isAdmin();
     final orders = await OrderService().all(isAdmin: admin);
     final s = await SettingsService().load();
-    final prods = await ProductRepository().loadActive();
+    final prods = await ProductRepository().loadActiveWithSource();
     if (!mounted) return;
     setState(() {
       _orders = orders.reversed.toList();
@@ -57,7 +58,8 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       _card.text = s['card'] ?? '';
       _owner.text = s['owner'] ?? '';
       _zarin.text = s['zarin'] ?? '';
-      if (prods.isNotEmpty) _products = prods;
+      // لیست واقعی (حتی خالی) — تا مدیر بفهمد فروشگاه واقعا خالی است نه دمو
+      _products = prods.products;
     });
   }
 
@@ -67,11 +69,24 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       price = await _askPrice(o.totalPrice);
       if (price == null) return;
     }
-    await OrderService().updateStatus(o.id, st, totalPrice: price);
+    final res = await OrderService().updateStatus(o.id, st, totalPrice: price);
     if (!mounted) return;
+    String msg;
+    switch (res) {
+      case OrderService.updateOk:
+        msg = 'وضعیت سفارش به‌روز شد ✅';
+      case OrderService.updateNotFound:
+        msg = 'سفارش پیدا نشد (شاید حذف شده)';
+      case OrderService.updateBadPrice:
+        msg = 'مبلغ نامعتبر است؛ ثبت نشد';
+      case OrderService.updateBadStatus:
+        msg = 'وضعیت نامعتبر است؛ ثبت نشد';
+      default:
+        msg = 'به‌روزرسانی ناموفق بود';
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    if (res != OrderService.updateOk) return;
     await _load();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('وضعیت سفارش به‌روز شد ✅')));
   }
 
   Future<int?> _askPrice(int current) async {
@@ -196,13 +211,62 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       padding: const EdgeInsets.only(top: 8),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: thumb,
+          GestureDetector(
+            onTap: () => _showReceiptZoom(path, isUrl),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: thumb,
+            ),
           ),
           const SizedBox(width: 8),
           const Expanded(child: Text('📎 فیش ارسال شده (برای بزرگ‌نمایی لمس کن)', style: TextStyle(fontSize: 12))),
         ],
+      ),
+    );
+  }
+
+  /// نمایش فیش در اندازه بزرگ (قبلاً «لمس کن» نوشته بود ولی هیچ onTap وجود نداشت)
+  void _showReceiptZoom(String path, bool isUrl) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => Dialog.fullscreen(
+        backgroundColor: Colors.black87,
+        child: Stack(children: [
+          Center(
+            child: InteractiveViewer(
+              maxScale: 4,
+              child: isUrl
+                  ? CachedNetworkImage(
+                      imageUrl: path,
+                      fit: BoxFit.contain,
+                      errorWidget: (_, __, ___) => const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Icon(Icons.receipt_long, size: 64, color: Colors.white),
+                      ),
+                    )
+                  : Image.file(
+                      File(path),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Icon(Icons.receipt_long, size: 64, color: Colors.white),
+                      ),
+                    ),
+            ),
+          ),
+          SafeArea(
+            child: Align(
+              alignment: AlignmentDirectional.topEnd,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }
@@ -235,7 +299,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
 
   Widget _settingsTab() {
     return ListView(padding: const EdgeInsets.all(16), children: [
-      const Text('شماره کارت و زرین‌پال (از داخل اپ قابل تغییر)', style: TextStyle(fontWeight: FontWeight.bold)),
+      const Text('شماره کارت و زرین‌پال (ذخیره فقط لوکال/دمو؛ برای همه‌ی کاربران از داشبورد سوپابیس > app_settings به‌روز کن)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       const SizedBox(height: 10),
       TextField(
           controller: _card,
@@ -252,23 +316,35 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           textDirection: TextDirection.ltr),
       const SizedBox(height: 14),
       ElevatedButton(onPressed: () async {
-        final card = normalizeDigits(_card.text.trim()).replaceAll(RegExp(r'[^0-9]'), '');
+        final digits = normalizeDigits(_card.text.trim()).replaceAll(RegExp(r'[^0-9]'), '');
         final owner = _owner.text.trim();
         final zarin = _zarin.text.trim();
-        if (card.isNotEmpty && !RegExp(r'^\d{12,19}$').hasMatch(card)) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره کارت باید ۱۲ تا ۱۹ رقم باشد')));
+        // شماره کارت خالی مجاز نیست (قبلاً خالی ذخیره می‌شد و صفحه پرداخت همه «...» نشان می‌داد)
+        if (!RegExp(r'^\d{16}$').hasMatch(digits)) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره کارت باید دقیقاً ۱۶ رقم باشد')));
+          return;
+        }
+        if (owner.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام صاحب حساب لازم است')));
           return;
         }
         if (zarin.isNotEmpty) {
           final uri = Uri.tryParse(zarin);
-          if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+          // فقط https — http برای درگاه پرداخت ریسک MITM دارد
+          if (uri == null || uri.scheme != 'https') {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لینک زرین‌پال معتبر نیست (باید با https شروع شود)')));
             return;
           }
         }
-        await SettingsService().save(card: _card.text.trim(), owner: owner, zarin: zarin);
+        // حالت دمو/آفلاین: فقط آینه لوکال. وقتی سوپابیس وصل است سرچشمه‌ی حقیقت
+        // داشبورد سوپابیس است و نوشتن از کلاینت (با anon key) از RLS رد می‌شود.
+        await SettingsService().saveLocalMirror(card: _card.text.trim(), owner: owner, zarin: zarin);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ذخیره شد ✅')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(SupabaseService.isReady
+              ? 'ذخیره لوکال شد؛ برای همه‌ی کاربران از داشبورد سوپابیس به‌روز کن'
+              : 'ذخیره شد ✅'),
+        ));
       }, child: const Text('ذخیره تنظیمات')),
     ]);
   }

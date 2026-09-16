@@ -93,8 +93,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       onPressed: () => setState(() => _isLogin = !_isLogin),
                       child: Text(_isLogin ? 'حساب نداری؟ ثبت‌نام کن' : 'حساب داری؟ وارد شو'),
                     ),
-                    const Divider(),
-                    const Text('ادمین پیش‌فرض: admin / 1234', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    // ⚠️ اعتبارنامه پیش‌فرض ادمین عمداً نمایش داده نمی‌شود
+                    // (قبلاً admin / 1234 روی همین صفحه چاپ می‌شد).
+                    // اگر حساب ادمین هنوز ساخته نشده، در اولین ورود با اعتبارنامه
+                    // پیش‌فرض (مستند در README داخلی/متغیرهای config) ساخته می‌شود
+                    // و بلافاصله باید از پنل عوض شود.
                   ]),
                 ),
               ),

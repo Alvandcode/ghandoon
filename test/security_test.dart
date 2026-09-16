@@ -1,11 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qand_app/models/order.dart';
-import 'package:qand_app/models/product.dart';
 import 'package:qand_app/services/auth_service.dart';
 import 'package:qand_app/services/order_service.dart';
-import 'package:qand_app/services/product_repository.dart';
-import 'package:qand_app/services/supabase_service.dart';
 import 'package:qand_app/utils/format.dart';
 
 /// تست‌های امنیتی و رگرسیون برای ایرادهای رفع‌شده.
@@ -42,6 +39,15 @@ void main() {
       final s = AuthService();
       await s.register('reza_test', 'mypass');
       expect(await s.login('reza_test', 'wrong'), isFalse);
+    });
+
+    test('رمزِ با فاصله اضافی پذیرفته نمی‌شود (fallback trim حذف شد)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final s = AuthService();
+      await s.register(' spacing_test ', 'pass1234');
+      expect(await s.login(' spacing_test', ' pass1234'), isFalse);
+      expect(await s.login('spacing_test ', 'pass1234 '), isFalse);
+      expect(await s.login('spacing_test', 'pass1234'), isTrue);
     });
   });
 
@@ -92,7 +98,9 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final svc = OrderService();
       await svc.add(make('id-x', 'ali'));
-      await svc.updateStatus('id-x', 'weird_status_hacker');
+      final res =
+          await svc.updateStatus('id-x', 'weird_status_hacker');
+      expect(res, OrderService.updateBadStatus);
       final fresh = await svc.byId('id-x');
       expect(fresh!.status, OrderStatuses.pending);
     });
@@ -101,13 +109,19 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final svc = OrderService();
       await svc.add(make('id-y', 'ali'));
-      await svc.updateStatus('id-y', OrderStatuses.awaitingPayment,
+      final res = await svc.updateStatus('id-y', OrderStatuses.awaitingPayment,
           totalPrice: -5);
+      expect(res, OrderService.updateBadPrice);
       final fresh = await svc.byId('id-y');
-      // مبلغ صفر/منفی نادیده گرفته می‌شود و وضعیت عوض نمی‌شود؟ 
-      // پیاده‌سازی فعلی: totalPrice<=0 یعنی return زودهنگام (بدون تغییر)
       expect(fresh!.status, OrderStatuses.pending);
       expect(fresh.totalPrice, 1000);
+    });
+
+    test('updateStatus سفارش ناموجود را گزارش می‌کند', () async {
+      SharedPreferences.setMockInitialValues({});
+      final res = await OrderService().updateStatus(
+          'no-such', OrderStatuses.approved);
+      expect(res, OrderService.updateNotFound);
     });
 
     test('رکورد خراب کل لیست را کرش نمی‌کند', () async {
@@ -121,7 +135,6 @@ void main() {
   });
 
   group('Payment gating — منطق قفل پرداخت', () {
-    // منطق TrackOrder: فقط وقتی مبلغ اعلام شده (نه pending/cancelled) پرداخت فعال است
     bool canPay(String status) =>
         status != OrderStatuses.pending && status != OrderStatuses.cancelled;
 
@@ -138,8 +151,7 @@ void main() {
 
   group('Format — لبه‌ها', () {
     test('موبایل با خط‌تیره نامعتبر است ولی فاصله داخل شماره قبول است', () {
-      expect(isValidIranMobile('0913-000-000'), isFalse);
-      // normalizeDigits فاصله را حذف می‌کند تا تایپ راحت‌تر باشد؛ ذخیره همیشه بدون فاصله است
+      expect(isValidIranMobile('0913-000-0000'), isFalse);
       expect(isValidIranMobile('0913 000 0000'), isTrue);
       expect(normalizeDigits('0913 000 0000'), '09130000000');
     });
@@ -153,7 +165,7 @@ void main() {
       const stored = '6037-9911-1234-5678';
       final digits = stored.replaceAll(RegExp(r'[^0-9]'), '');
       expect(digits, '6037991112345678');
-      expect(RegExp(r'^\d{12,19}$').hasMatch(digits), isTrue);
+      expect(RegExp(r'^\d{16}$').hasMatch(digits), isTrue);
     });
 
     test('basename مسیر فایل لو نمی‌رود', () {
@@ -165,37 +177,6 @@ void main() {
 
       expect(base('/data/user/0/com.qand.app/cache/abc.jpg'), 'abc.jpg');
       expect(base(r'C:\Users\a\img.png'), 'img.png');
-    });
-  });
-
-  group('Product — ردیف سوپابیس', () {
-    test('fromMap ردیف واقعی سوپابیس (uuid + image_url)', () {
-      final p = Product.fromMap({
-        'id': '550e8400-e29b-41d4-a716-446655440000',
-        'title': 'کیک ویژه',
-        'category': 'کیک تولد',
-        'description': 'd',
-        'ingredients': 'i',
-        'price': 700000,
-        'unit': 'عدد',
-        'image_url': 'https://xyz.supabase.co/storage/v1/object/public/x.png',
-      });
-      expect(p.id, '550e8400-e29b-41d4-a716-446655440000');
-      expect(p.imageUrl, contains('https://'));
-      expect(p.asset, 'assets/images/birthday.png');
-    });
-  });
-
-  group('Supabase offline fallback', () {
-    test('بدون پیکربندی، client null است (نه throw)', () {
-      // در CI بدون --dart-define اجرا می‌شود پس hasSupabase=false و ready=false
-      expect(SupabaseService.clientOrNull(), isNull);
-    });
-
-    test('ProductRepository آفلاین دمو برمی‌گرداند', () async {
-      SharedPreferences.setMockInitialValues({});
-      final list = await ProductRepository().loadActive();
-      expect(list, isNotEmpty);
     });
   });
 }

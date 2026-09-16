@@ -109,9 +109,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _openZarinpal() async {
     final uri = Uri.tryParse(_zarin.trim());
-    if (uri == null || !(uri.scheme == 'http' || uri.scheme == 'https')) {
+    // فقط https — http برای درگاه پرداخت ریسک MITM دارد
+    if (uri == null || uri.scheme != 'https') {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لینک پرداخت معتبر نیست')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لینک پرداخت معتبر نیست (باید https باشد)')));
       return;
     }
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);

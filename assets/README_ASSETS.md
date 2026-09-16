@@ -3,7 +3,7 @@
 این فایل‌ها را از چت ذخیره کن و با همین نام‌ها بریز توی `assets/`:
 
 - `assets/logo/logo.png` → لوگوی دایره‌ای قند (نسخه مشکی/سفید برای آیکون)
-- `assets/logo/chef.png` → کاراکتر سه‌بعدی دختر سرآشپز (صفحه اصلی)
+- `assets/images/chef.png` → کاراکتر سه‌بعدی دختر سرآشپز (صفحه اصلی) — توجه: کد از این مسیر می‌خواند، نه assets/logo/
 - `assets/images/cupcake.png` → کیک خونگی (کاپ‌کیک)
 - `assets/images/cake_slice.png` → برش کیک (اختیاری)
 - `assets/images/roll.png` → رولت (بیسکوییت)
