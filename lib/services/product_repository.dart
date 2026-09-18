@@ -1,5 +1,6 @@
 import '../data/demo_products.dart';
 import '../models/product.dart';
+import '../utils/product_validate.dart';
 import 'supabase_service.dart';
 
 /// نتیجه‌ی بارگذاری محصولات.
@@ -79,6 +80,88 @@ class ProductRepository {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// ساخت محصول جدید (فقط آنلاین؛ آفلاین null).
+  /// نامعتبر بودن ورودی قبل از تماس با سرور چک می‌شود.
+  Future<Product?> createProduct({
+    required String title,
+    required String category,
+    required int price,
+    required String unit,
+    String description = '',
+    String ingredients = '',
+    String? imageUrl,
+    bool isActive = true,
+  }) async {
+    if (validateProductFields(
+            title: title, priceText: '$price', category: category) !=
+        null) {
+      return null;
+    }
+    final client = SupabaseService.clientOrNull();
+    if (client == null) return null;
+    try {
+      final rows = await client.from('products').insert({
+        'title': title.trim(),
+        'category': category,
+        'price': price,
+        'unit': unit.trim().isEmpty ? 'عدد' : unit.trim(),
+        'description': description.trim(),
+        'ingredients': ingredients.trim(),
+        'image_url': (imageUrl ?? '').trim().isEmpty ? null : imageUrl!.trim(),
+        'is_active': isActive,
+      }).select();
+      final list = rows as List<dynamic>;
+      if (list.isEmpty) return null;
+      return Product.fromMap(Map<String, dynamic>.from(list.first as Map));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// ویرایش کامل محصول (فقط آنلاین؛ آفلاین null).
+  /// اگر [imageUrl] داده نشود، عکس قبلی دست‌نخورده می‌ماند.
+  Future<Product?> updateProduct(
+    String id, {
+    required String title,
+    required String category,
+    required int price,
+    required String unit,
+    String description = '',
+    String ingredients = '',
+    String? imageUrl,
+    bool? isActive,
+  }) async {
+    if (validateProductFields(
+            title: title, priceText: '$price', category: category) !=
+        null) {
+      return null;
+    }
+    final client = SupabaseService.clientOrNull();
+    if (client == null) return null;
+    try {
+      final patch = <String, dynamic>{
+        'title': title.trim(),
+        'category': category,
+        'price': price,
+        'unit': unit.trim().isEmpty ? 'عدد' : unit.trim(),
+        'description': description.trim(),
+        'ingredients': ingredients.trim(),
+      };
+      if (imageUrl != null) {
+        patch['image_url'] =
+            imageUrl.trim().isEmpty ? null : imageUrl.trim();
+      }
+      if (isActive != null) patch['is_active'] = isActive;
+      final rows =
+          await client.from('products').update(patch).eq('id', id).select();
+      final list = rows as List<dynamic>;
+      if (list.isEmpty) return null;
+      return Product.fromMap(Map<String, dynamic>.from(list.first as Map));
+    } catch (_) {
+      return null;
     }
   }
 }

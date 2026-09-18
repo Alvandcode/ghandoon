@@ -12,6 +12,7 @@ import '../services/product_repository.dart';
 import '../services/supabase_service.dart';
 import '../data/demo_products.dart';
 import '../utils/format.dart';
+import 'product_edit_screen.dart';
 
 class AdminScreen extends StatefulWidget {
   final String username;
@@ -340,10 +341,20 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         children: [
           Text(
             online
-                ? 'لیست زنده از سرور. تغییر وضعیت/قیمت همین‌جا ذخیره می‌شود.'
-                : 'حالت آفلاین/دمو: ویرایش قیمت و فعال‌بودن فقط وقتی سوپابیس وصل است کار می‌کند.',
+                ? 'لیست زنده از سرور. افزودن، ویرایش، قیمت و فعال‌بودن همین‌جا ذخیره می‌شود.'
+                : 'حالت آفلاین/دمو: تغییر محصول فقط وقتی سوپابیس وصل است کار می‌کند.',
             style: const TextStyle(color: Colors.grey),
           ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _openProductAdd,
+              icon: const Icon(Icons.add),
+              label: const Text('محصول جدید ➕'),
+            ),
+          ),
+          const SizedBox(height: 8),
           for (final p in _products)
             Card(
                 child: ListTile(
@@ -354,8 +365,8 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: 'ویرایش قیمت',
-                    onPressed: () => _askProductPrice(p),
+                    tooltip: 'ویرایش کامل (اسم، قیمت، عکس...)',
+                    onPressed: () => _openProductEdit(p),
                     icon: const Icon(Icons.edit, color: QandTheme.red),
                   ),
                   Switch(
@@ -365,15 +376,37 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                 ],
               ),
             )),
-          const SizedBox(height: 8),
-          const Card(
-              child: Padding(
-                  padding: EdgeInsets.all(14),
-                  child: Text(
-                      '➕ افزودن محصول جدید و عکس: در سوپابیس > Table Editor > products ردیف اضافه کن (title, category, price, unit, description, ingredients, image_url, is_active). عکس را در Storage > product-images آپلود و لینکش را در image_url بگذار.'))),
         ],
       ),
     );
+  }
+
+  Future<void> _openProductAdd() async {
+    if (!SupabaseService.isReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('آفلاین هستی؛ اتصال سوپابیس لازم است')));
+      return;
+    }
+    final saved = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ProductEditScreen()),
+    );
+    if (saved == true) await _load();
+  }
+
+  Future<void> _openProductEdit(Product p) async {
+    if (!SupabaseService.isReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('آفلاین هستی؛ اتصال سوپابیس لازم است')));
+      return;
+    }
+    final saved = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ProductEditScreen(product: p)),
+    );
+    if (saved == true) await _load();
   }
 
   Future<void> _toggleProduct(Product p, bool v) async {
@@ -391,52 +424,6 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       setState(() {
         final i = _products.indexWhere((e) => e.id == p.id);
         if (i != -1) _products[i] = p.copyWith(isActive: v);
-      });
-    }
-  }
-
-  Future<void> _askProductPrice(Product p) async {
-    if (!SupabaseService.isReady) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('آفلاین هستی؛ اتصال سوپابیس لازم است')));
-      return;
-    }
-    _price.text = '${p.price}';
-    final result = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('قیمت جدید — ${p.title} (تومان)'),
-        content: TextField(
-            controller: _price,
-            keyboardType: TextInputType.number,
-            decoration:
-                const InputDecoration(hintText: 'مثلا 450000')),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('لغو')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(context, _price.text.trim()),
-              child: const Text('ثبت')),
-        ],
-      ),
-    );
-    if (result == null || !mounted) return;
-    final v = parsePrice(result);
-    if (v == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('مبلغ نامعتبر است (بین ۱٬۰۰۰ تا ۱٬۰۰۰٬۰۰۰٬۰۰۰ تومان)')));
-      return;
-    }
-    final ok = await ProductRepository().updatePrice(p.id, v);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ok ? 'قیمت به‌روز شد ✅' : 'ناموفق بود')));
-    if (ok) {
-      setState(() {
-        final i = _products.indexWhere((e) => e.id == p.id);
-        if (i != -1) _products[i] = p.copyWith(price: v);
       });
     }
   }

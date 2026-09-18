@@ -1,0 +1,305 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../theme/qand_theme.dart';
+import '../models/product.dart';
+import '../services/product_image_service.dart';
+import '../services/product_repository.dart';
+import '../services/supabase_service.dart';
+import '../utils/format.dart';
+import '../utils/product_validate.dart';
+import '../widgets/product_image.dart';
+
+/// ویرایشگر محصول مدیر: هم «افزودن» (product == null) هم «ویرایش کامل».
+/// عکس از گالری انتخاب و در Storage آپلود می‌شود؛ true برمی‌گرداند اگر
+/// چیزی ذخیره شد تا لیست مدیر رفرش شود.
+class ProductEditScreen extends StatefulWidget {
+  final Product? product;
+  const ProductEditScreen({super.key, this.product});
+  @override
+  State<ProductEditScreen> createState() => _ProductEditScreenState();
+}
+
+class _ProductEditScreenState extends State<ProductEditScreen> {
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _title;
+  late final TextEditingController _price;
+  late final TextEditingController _unit;
+  late final TextEditingController _desc;
+  late final TextEditingController _ingr;
+  late String _category;
+  late bool _active;
+  String? _pickedPath; // عکس جدید انتخاب‌شده (هنوز آپلود نشده)
+  bool _busy = false;
+  String _busyMsg = '';
+
+  bool get _isEdit => widget.product != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.product;
+    _title = TextEditingController(text: p?.title ?? '');
+    _price = TextEditingController(text: p == null ? '' : '${p.price}');
+    _unit = TextEditingController(text: p?.unit ?? 'عدد');
+    _desc = TextEditingController(text: p?.description ?? '');
+    _ingr = TextEditingController(text: p?.ingredients ?? '');
+    _category = (p != null && productCategories.contains(p.category))
+        ? p.category
+        : productCategories.first;
+    _active = p?.isActive ?? true;
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _price.dispose();
+    _unit.dispose();
+    _desc.dispose();
+    _ingr.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final img = await ImagePicker()
+          .pickImage(source: ImageSource.gallery, imageQuality: 80);
+      if (img == null || !mounted) return;
+      setState(() => _pickedPath = img.path);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('انتخاب عکس ناموفق بود؛ دسترسی گالری را بررسی کن')));
+    }
+  }
+
+  Future<void> _save() async {
+    if (_busy) return;
+    if (!SupabaseService.isReady) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('آفلاین هستی؛ برای تغییر محصول اتصال سوپابیس لازم است')));
+      return;
+    }
+    if (!_form.currentState!.validate()) return;
+    final err = validateProductFields(
+      title: _title.text,
+      priceText: _price.text,
+      category: _category,
+    );
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
+    final price = parsePrice(_price.text)!;
+    setState(() {
+      _busy = true;
+      _busyMsg = _pickedPath == null ? 'در حال ذخیره...' : 'در حال آپلود عکس...';
+    });
+    try {
+      String? imageUrl;
+      if (_pickedPath != null) {
+        setState(() => _busyMsg = 'در حال آپلود عکس...');
+        imageUrl =
+            await ProductImageService().uploadProductImage(_pickedPath!);
+        if (imageUrl == null && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('آپلود عکس ناموفق بود؛ بدون تغییر عکس ذخیره می‌شود؟ دوباره تلاش کن')));
+          return;
+        }
+        if (!mounted) return;
+        setState(() => _busyMsg = 'در حال ذخیره...');
+      }
+      final repo = ProductRepository();
+      final saved = _isEdit
+          ? await repo.updateProduct(
+              widget.product!.id,
+              title: _title.text,
+              category: _category,
+              price: price,
+              unit: _unit.text,
+              description: _desc.text,
+              ingredients: _ingr.text,
+              imageUrl: imageUrl, // null یعنی عکس قبلی بماند
+              isActive: _active,
+            )
+          : await repo.createProduct(
+              title: _title.text,
+              category: _category,
+              price: price,
+              unit: _unit.text,
+              description: _desc.text,
+              ingredients: _ingr.text,
+              imageUrl: imageUrl ?? '',
+              isActive: _active,
+            );
+      if (!mounted) return;
+      if (saved == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('ذخیره ناموفق بود؛ اتصال را بررسی کن')));
+        return;
+      }
+      Navigator.pop(context, true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(90),
+        child: Container(
+          decoration: QandTheme.headerGradient(radius: 24),
+          child: SafeArea(
+              child: Row(children: [
+            IconButton(
+                onPressed: _busy ? null : () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_forward, color: Colors.white)),
+            Text(_isEdit ? 'ویرایش محصول ✏️' : 'محصول جدید ➕',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17)),
+          ])),
+        ),
+      ),
+      body: Form(
+        key: _form,
+        child: ListView(padding: const EdgeInsets.all(16), children: [
+          _imagePicker(),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _title,
+            maxLength: 60,
+            decoration: const InputDecoration(
+                labelText: 'اسم محصول *', prefixIcon: Icon(Icons.cake),
+                counterText: ''),
+            validator: (v) =>
+                (v ?? '').trim().length < 2 ? 'اسم محصول حداقل ۲ حرف باشد' : null,
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _category,
+            decoration: const InputDecoration(
+                labelText: 'دسته *', prefixIcon: Icon(Icons.category_outlined)),
+            items: [
+              for (final c in productCategories)
+                DropdownMenuItem(value: c, child: Text(c)),
+            ],
+            onChanged: (v) => setState(() => _category = v ?? _category),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _price,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'قیمت (تومان) *', prefixIcon: Icon(Icons.payments_outlined),
+                hintText: 'مثلا 450000'),
+            validator: (v) =>
+                parsePrice(v ?? '') == null ? 'قیمت معتبر نیست' : null,
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _unit,
+            maxLength: 30,
+            decoration: const InputDecoration(
+                labelText: 'واحد', prefixIcon: Icon(Icons.scale_outlined),
+                hintText: 'عدد', counterText: ''),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _desc,
+            maxLines: 2,
+            maxLength: 500,
+            decoration: const InputDecoration(
+                labelText: 'توضیحات', prefixIcon: Icon(Icons.description_outlined),
+                counterText: ''),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _ingr,
+            maxLines: 2,
+            maxLength: 500,
+            decoration: const InputDecoration(
+                labelText: 'مواد تشکیل‌دهنده', prefixIcon: Icon(Icons.egg_outlined),
+                counterText: ''),
+          ),
+          SwitchListTile(
+            title: const Text('فعال برای فروش'),
+            subtitle: const Text('خاموش = مشتری نمی‌بیند ولی حذف نمی‌شود'),
+            value: _active,
+            onChanged: (v) => setState(() => _active = v),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _busy ? null : _save,
+            child: _busy
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white)),
+                      const SizedBox(width: 10),
+                      Text(_busyMsg),
+                    ],
+                  )
+                : Text(_isEdit ? 'ذخیره تغییرات' : 'افزودن محصول'),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _imagePicker() {
+    Widget preview;
+    if (_pickedPath != null) {
+      preview = Image.file(
+        File(_pickedPath!),
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) =>
+            const SizedBox(height: 180, child: Center(child: Text('🧁', style: TextStyle(fontSize: 64)))),
+      );
+    } else if (_isEdit) {
+      final p = widget.product!;
+      preview = ProductImage(
+        asset: p.asset,
+        imageUrl: p.imageUrl,
+        height: 180,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        iconSize: 64,
+      );
+    } else {
+      preview = Container(
+        height: 140,
+        width: double.infinity,
+        decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(16)),
+        child: const Center(
+            child: Text('📷 هنوز عکسی انتخاب نشده',
+                style: TextStyle(color: Colors.grey))),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(borderRadius: BorderRadius.circular(16), child: preview),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _busy ? null : _pickImage,
+          icon: const Icon(Icons.photo_library_outlined),
+          label: Text(_pickedPath == null && !_isEdit
+              ? 'انتخاب عکس (اختیاری)'
+              : 'تغییر عکس'),
+        ),
+      ],
+    );
+  }
+}
