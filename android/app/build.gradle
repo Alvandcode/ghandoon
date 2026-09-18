@@ -24,12 +24,16 @@ if (hasKeystoreFile) {
 
 android {
     namespace = "com.qand.app"
-    compileSdk = 35
+    // compileSdk بالاتر از targetSdk اشکالی ندارد (فقط API جدید برای کامپایل)؛
+    // targetSdk همان 35 می‌ماند (اندروید 15) و minSdk همان 24 (اندروید 7).
+    compileSdk = 36
     ndkVersion = "25.1.8937393"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+        // لازم برای flutter_local_notifications (APIهای جدید جاوا روی اندروید قدیمی)
+        coreLibraryDesugaringEnabled = true
     }
     kotlinOptions {
         jvmTarget = '1.8'
@@ -75,4 +79,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // بک‌پورت APIهای جاوا برای اندرویدهای قدیمی (minSdk همان 24 می‌ماند)
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
 }
