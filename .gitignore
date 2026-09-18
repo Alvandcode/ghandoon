@@ -9,6 +9,7 @@ ios/Flutter/flutter_export_environment.sh
 android/app/debug/
 android/app/profile/
 android/app/release/
+android/local.properties
 *.iml
 .idea/
 .vscode/
