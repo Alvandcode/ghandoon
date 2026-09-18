@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../theme/qand_theme.dart';
 import '../models/order.dart';
 import '../services/order_service.dart';
+import '../services/receipt_service.dart';
 import '../services/settings_service.dart';
 import '../utils/format.dart';
 
@@ -92,12 +93,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
       };
       final newStatus =
           beyond.contains(_order.status) ? _order.status : OrderStatuses.receiptSent;
+      // اول آپلود به Storage (اگر آنلاین) تا مدیر روی گوشی خودش فیش را ببیند؛
+      // آفلاین همان مسیر لوکال برمی‌گردد و چیزی گم نمی‌شود.
+      final storedPath = await ReceiptService().uploadReceipt(
+        localPath: img.path,
+        orderId: _order.id,
+        username: _order.owner,
+      );
       await OrderService()
-          .updateStatus(_order.id, newStatus, receiptPath: img.path);
+          .updateStatus(_order.id, newStatus, receiptPath: storedPath);
       final fresh = await OrderService().byId(_order.id);
       if (!mounted) return;
       if (fresh != null) _order = fresh;
-      setState(() => _receipt = img.path);
+      setState(() => _receipt = storedPath);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فیش ارسال شد، منتظر تایید مدیر باش 🙏')));
     } catch (_) {
       if (!mounted) return;
@@ -157,13 +165,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
         Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(_order.productTitle, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+          if (_order.itemsSummary.isNotEmpty)
+            Text(_order.itemsSummary, style: const TextStyle(fontSize: 13)),
+          if (_order.cakeOptions.isNotEmpty)
+            Text('🎂 ${_order.cakeOptions}',
+                style: const TextStyle(fontSize: 13)),
           Text(
             isPending
                 ? 'مبلغ تقریبی: ${formatToman(_order.totalPrice)} (نهایی را مدیر اعلام می‌کند)'
                 : 'مبلغ اعلامی مدیر: ${formatToman(_order.totalPrice)}',
             style: const TextStyle(fontWeight: FontWeight.bold, color: QandTheme.red, fontSize: 16),
           ),
-          Text('وضعیت: ${OrderStatuses.fa(_order.status)}'),
+          if (_order.deliveryFee > 0)
+            Text('شامل هزینه پیک: ${formatToman(_order.deliveryFee)}',
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text(
+              'تحویل: ${Fulfillment.fa(_order.fulfillment)} | وضعیت: ${OrderStatuses.fa(_order.status)}'),
         ]))),
         Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('کارت‌به‌کارت', style: TextStyle(fontWeight: FontWeight.bold)),

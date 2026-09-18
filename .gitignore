@@ -27,6 +27,10 @@ android/key.properties
 *.jks
 *.keystore
 
+# Firebase — google-services.json секрет است و هرگز کامیت نشود
+android/app/google-services.json
+GoogleService-Info.plist
+
 # OS
 .DS_Store
 Thumbs.db

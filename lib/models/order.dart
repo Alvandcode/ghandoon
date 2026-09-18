@@ -16,6 +16,18 @@ class QandOrder {
   /// نام‌کاربری ثبت‌کننده سفارش (برای تفکیک سفارش هر کاربر).
   /// سفارش‌های قدیمی ممکن است خالی باشد ('') — برای سازگاری نگه داشته می‌شود.
   final String owner;
+  /// کد پیگیری کوتاه انسانی مثل QND-8X42K1 — برای پیگیری تلفنی و چاپ فاکتور.
+  /// سفارش‌های قدیمی ممکن است خالی باشد ('')؛ در این صورت UI از id کوتاه‌شده استفاده می‌کند.
+  final String trackingCode;
+  /// نحوه تحویل: 'pickup' (حضوری) یا 'delivery' (ارسال با پیک). قدیمی‌ها 'delivery'.
+  final String fulfillment;
+  /// هزینه پیک (تومان). حضوری = ۰. داخل totalPrice لحاظ شده است.
+  final int deliveryFee;
+  /// شرح اقلام برای سفارش‌های سبدی، مثل «کیک خونگی ×۲ + کوکی ×۱».
+  /// سفارش تکی خالی می‌ماند و UI از productTitle استفاده می‌کند.
+  final String itemsSummary;
+  /// مشخصات کیک سفارشی (وزن/طعم/فیلینگ/متن روی کیک). خالی = ندارد.
+  final String cakeOptions;
 
   const QandOrder({
     required this.id,
@@ -33,9 +45,22 @@ class QandOrder {
     this.receiptPath,
     required this.createdAt,
     this.owner = '',
+    this.trackingCode = '',
+    this.fulfillment = Fulfillment.delivery,
+    this.deliveryFee = 0,
+    this.itemsSummary = '',
+    this.cakeOptions = '',
   });
 
-  QandOrder copyWith({String? status, String? receiptPath, int? totalPrice}) {
+  QandOrder copyWith(
+      {String? status,
+      String? receiptPath,
+      int? totalPrice,
+      String? trackingCode,
+      String? fulfillment,
+      int? deliveryFee,
+      String? itemsSummary,
+      String? cakeOptions}) {
     return QandOrder(
       id: id,
       productId: productId,
@@ -52,8 +77,31 @@ class QandOrder {
       receiptPath: receiptPath ?? this.receiptPath,
       createdAt: createdAt,
       owner: owner,
+      trackingCode: trackingCode ?? this.trackingCode,
+      fulfillment: fulfillment ?? this.fulfillment,
+      deliveryFee: deliveryFee ?? this.deliveryFee,
+      itemsSummary: itemsSummary ?? this.itemsSummary,
+      cakeOptions: cakeOptions ?? this.cakeOptions,
     );
   }
+
+  /// نمایشی برای کاربر: کد پیگیری اگر هست، وگرنه ۸ کاراکتر اول id.
+  String get displayCode =>
+      trackingCode.isNotEmpty ? trackingCode : (id.length <= 8 ? id : id.substring(0, 8));
+
+  /// عنوان نمایشی اقلام: شرح سبد اگر هست، وگرنه «محصول ×تعداد».
+  String get displayItems =>
+      itemsSummary.isNotEmpty ? itemsSummary : '$productTitle × $qty';
+
+  bool get isPickup => fulfillment == Fulfillment.pickup;
+}
+
+/// نحوه تحویل سفارش.
+class Fulfillment {
+  static const pickup = 'pickup'; // تحویل حضوری
+  static const delivery = 'delivery'; // ارسال با پیک
+
+  static String fa(String v) => v == pickup ? 'حضوری' : 'ارسال با پیک';
 }
 
 class OrderStatuses {

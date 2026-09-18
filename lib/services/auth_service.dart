@@ -99,6 +99,46 @@ class AuthService {
     await p.remove(_kRole);
   }
 
+  /// نتیجه‌های [changePassword]: ok / wrong_old / weak_new / same_as_old / no_user
+  static const changeOk = 'ok';
+  static const changeWrongOld = 'wrong_old';
+  static const changeWeakNew = 'weak_new';
+  static const changeSameAsOld = 'same_as_old';
+  static const changeNoUser = 'no_user';
+
+  /// تغییر رمز کاربر لاگین‌کرده (به‌ویژه مدیر برای خروج از رمز پیش‌فرض 1234).
+  /// رمز جدید حداقل ۶ کاراکتر و متفاوت از قبلی باید باشد.
+  Future<String> changePassword({
+    required String username,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    username = username.trim();
+    if (username.isEmpty || oldPassword.isEmpty) return changeNoUser;
+    if (newPassword.length < 6) return changeWeakNew;
+    if (newPassword == oldPassword) return changeSameAsOld;
+    final p = await SharedPreferences.getInstance();
+    final saved = p.getString('user_$username');
+    if (saved == null) return changeNoUser;
+    // رکورد plaintext قدیمی: اول باید با رمز دقیق قدیمی ارتقا/لاگین شود.
+    if (!saved.startsWith('v1\$')) {
+      if (oldPassword != saved) return changeWrongOld;
+      await p.setString('user_$username', hashPassword(username, newPassword));
+      return changeOk;
+    }
+    if (!_matches(username, oldPassword, saved)) return changeWrongOld;
+    await p.setString('user_$username', hashPassword(username, newPassword));
+    return changeOk;
+  }
+
+  /// true یعنی حساب admin هنوز با رمز پیش‌فرض 1234 کار می‌کند — باید فوراً عوض شود.
+  Future<bool> isUsingDefaultAdminPassword() async {
+    final p = await SharedPreferences.getInstance();
+    final saved = p.getString('user_$_defaultAdminUser');
+    if (saved == null) return true; // هنوز ساخته نشده؛ اولین ورود با 1234 باز است
+    return saved == hashPassword(_defaultAdminUser, _defaultAdminPass);
+  }
+
   Future<String?> currentUser() async {
     final p = await SharedPreferences.getInstance();
     return p.getString(_kUser);

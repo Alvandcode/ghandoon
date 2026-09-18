@@ -1,20 +1,53 @@
 import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../models/product.dart';
+import '../services/cart_service.dart';
 import '../utils/format.dart';
+import '../utils/order_rules.dart';
 import '../widgets/product_image.dart';
+import 'cart_screen.dart';
 import 'order_form_screen.dart';
 import 'chat_screen.dart';
 
-class ProductDetailScreen extends StatelessWidget {
+class ProductDetailScreen extends StatefulWidget {
   final Product product;
   final String username;
-  const ProductDetailScreen({super.key, required this.product, required this.username});
+  const ProductDetailScreen(
+      {super.key, required this.product, required this.username});
+  @override
+  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+}
+
+class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  bool _busy = false;
 
   String _toman(int v) => formatToman(v);
 
+  Future<void> _addToCart() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final p = widget.product;
+      await CartService().add(
+        username: widget.username,
+        productId: p.id,
+        title: p.title,
+        unitPrice: p.price,
+        unit: p.unit,
+        leadDays: minLeadDaysForProduct(productId: p.id, category: p.category),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${p.title} به سبد اضافه شد 🛒')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final product = widget.product;
+    final username = widget.username;
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(children: [
@@ -26,6 +59,20 @@ class ProductDetailScreen extends StatelessWidget {
                 IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_forward, color: Colors.white)),
                 const Spacer(),
                 Text(product.category, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: Colors.white24,
+                  child: IconButton(
+                    tooltip: 'سبد خرید',
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                CartScreen(username: username))),
+                    icon: const Icon(Icons.shopping_cart_outlined,
+                        color: Colors.white),
+                  ),
+                ),
               ]),
               const SizedBox(height: 8),
               ClipRRect(
@@ -58,6 +105,13 @@ class ProductDetailScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderFormScreen(product: product, username: username))),
                 child: const Text('لینک سفارش → ثبت سفارش'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : _addToCart,
+                icon: const Icon(Icons.add_shopping_cart),
+                label: Text(_busy ? 'در حال افزودن...' : 'افزودن به سبد 🛒'),
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(

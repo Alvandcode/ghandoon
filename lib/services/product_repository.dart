@@ -24,7 +24,7 @@ class ProductRepository {
   Future<ProductLoadResult> loadActiveWithSource() async {
     final client = SupabaseService.clientOrNull();
     if (client == null) {
-      return ProductLoadResult(demoProducts, ProductSource.demoOffline);
+      return const ProductLoadResult(demoProducts, ProductSource.demoOffline);
     }
     try {
       final rows = await client
@@ -37,12 +37,12 @@ class ProductRepository {
           .where((p) => p.title.isNotEmpty)
           .toList();
       if (list.isEmpty) {
-        return ProductLoadResult(const [], ProductSource.supabaseEmpty);
+        return const ProductLoadResult([], ProductSource.supabaseEmpty);
       }
       return ProductLoadResult(list, ProductSource.supabase);
     } catch (_) {
       // خطای شبکه = دمو + علت (آفلاین)، نه «فروشگاه خالی»
-      return ProductLoadResult(demoProducts, ProductSource.demoOffline);
+      return const ProductLoadResult(demoProducts, ProductSource.demoOffline);
     }
   }
 
@@ -54,5 +54,31 @@ class ProductRepository {
     if (r.source == ProductSource.demoOffline) return r.products;
     if (r.source == ProductSource.supabaseEmpty) return const [];
     return r.products;
+  }
+
+  /// فعال/غیرفعال کردن محصول (فقط وقتی سوپابیس وصل است؛ آفلاین false).
+  /// مدیر فروشگاه با این دکمه محصول ناموجود را بدون حذف مخفی می‌کند.
+  Future<bool> setActive(String id, bool active) async {
+    final client = SupabaseService.clientOrNull();
+    if (client == null) return false;
+    try {
+      await client.from('products').update({'is_active': active}).eq('id', id);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// ویرایش قیمت (تومان). نامعتبر (<=0) بدون تماس با سرور false می‌دهد.
+  Future<bool> updatePrice(String id, int price) async {
+    if (price <= 0) return false;
+    final client = SupabaseService.clientOrNull();
+    if (client == null) return false;
+    try {
+      await client.from('products').update({'price': price}).eq('id', id);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

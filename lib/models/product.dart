@@ -10,6 +10,8 @@ class Product {
   final String unit;
   final String asset; // مسیر عکس لوکال
   final String? imageUrl; // عکس از سوپابیس
+  /// فعال بودن برای فروش. دموها همیشه true؛ از سرور می‌آید.
+  final bool isActive;
 
   const Product({
     required this.id,
@@ -21,10 +23,27 @@ class Product {
     required this.unit,
     required this.asset,
     this.imageUrl,
+    this.isActive = true,
   });
+
+  Product copyWith({int? price, bool? isActive, String? imageUrl}) {
+    return Product(
+      id: id,
+      title: title,
+      category: category,
+      description: description,
+      ingredients: ingredients,
+      price: price ?? this.price,
+      unit: unit,
+      asset: asset,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isActive: isActive ?? this.isActive,
+    );
+  }
 
   factory Product.fromMap(Map<String, dynamic> m) {
     final category = '${m['category'] ?? ''}';
+    final active = m['is_active'];
     return Product(
       id: '${m['id'] ?? ''}',
       title: '${m['title'] ?? ''}',
@@ -35,6 +54,7 @@ class Product {
       unit: '${m['unit'] ?? 'عدد'}',
       asset: _assetForCategory(category),
       imageUrl: m['image_url'] as String?,
+      isActive: active == null ? true : active == true || '$active' == 'true' || '$active' == '1',
     );
   }
 

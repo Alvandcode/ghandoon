@@ -48,3 +48,22 @@ int parseIntSafe(dynamic v, [int fallback = 0]) {
   if (v is num) return v.toInt();
   return int.tryParse(normalizeDigits('$v')) ?? fallback;
 }
+
+/// کد پیگیری کوتاه مثل QND-8X42K1.
+/// [random] برای تست تزریق می‌شود تا خروجی قطعی باشد؛ در محصول از Random امن استفاده کن.
+String generateTrackingCode({int Function(int max)? random, DateTime? now}) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // بدون I,O,0,1 تا اشتباه خوانده نشود
+  final r = random ?? _defaultRandom;
+  final t = now ?? DateTime.now();
+  final buf = StringBuffer('QND-');
+  // ۲ حرف از زمان برای یکتایی تقریبی + ۴ کاراکتر تصادفی
+  buf.write(alphabet[t.millisecondsSinceEpoch % alphabet.length]);
+  buf.write(alphabet[(t.millisecondsSinceEpoch ~/ 997) % alphabet.length]);
+  for (var i = 0; i < 4; i++) {
+    buf.write(alphabet[r(alphabet.length)]);
+  }
+  return buf.toString();
+}
+
+int _defaultRandom(int max) =>
+    DateTime.now().microsecondsSinceEpoch % max;

@@ -3,6 +3,9 @@
          و بدون هیچ permission اضافه‌ای کار می‌کند؛ READ_MEDIA_IMAGES /
          READ_EXTERNAL_STORAGE حذف شدند (حریم خصوصی بهتر + ریویو راحت‌تر). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- اعلان محلی سفارش‌ها (اندروید ۱۳ به بالا ران‌تایم اجازه می‌خواهد؛
+         درخواستش در NotificationService.init انجام می‌شود) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:label="قنادی قند"

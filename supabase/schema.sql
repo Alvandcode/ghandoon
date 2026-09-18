@@ -110,6 +110,22 @@ create policy "settings read for all" on app_settings for select using (true);
 -- RLS فعال با صفر پالیسی یعنی anon/authenticated هیچ دسترسی‌ای ندارند؛
 -- فقط service_role بایپس می‌کند. اپ فعلاً سفارش/چت را لوکال نگه می‌دارد.
 
+-- ============ v2.1 — ستون‌های چنددستگاهی شدن سفارش (اجرای چندباره امن) ============
+-- اپ جدید این ستون‌ها را می‌خواند/می‌نویسد؛ اگر سرور قدیمی باشد، مپر اپ
+-- با fallback کار می‌کند ولی مدیر و مشتری همدیگر را نمی‌بینند تا این اجرا شود.
+alter table orders add column if not exists customer_username text default '';
+alter table orders add column if not exists product_title text default '';
+alter table orders add column if not exists tracking_code text;
+create unique index if not exists orders_tracking_unique on orders(tracking_code);
+-- v2.2 — سبد چندمحصولی / کیک‌ساز / تحویل و پیک (اجرای چندباره امن)
+alter table orders add column if not exists fulfillment text default 'delivery';
+alter table orders add column if not exists delivery_fee int default 0;
+alter table orders add column if not exists items_summary text default '';
+alter table orders add column if not exists cake_options text default '';
+-- v2.3 — توکن پوش هر دستگاه (ثبت فقط از Edge Function با service_role؛
+-- کلاینت حق نوشتن مستقیم profiles را ندارد و RLS بسته می‌ماند)
+alter table profiles add column if not exists fcm_token text default '';
+
 -- Storage buckets (از داشبورد Storage بساز): product-images (public) ، receipts (private)
 --   product-images: خواندن عمومی؛ آپلود فقط service_role.
 --   receipts: خصوصی؛ بعد از Auth هر کاربر فقط مسیر user_id/ خودش (بلوک v3).

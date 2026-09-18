@@ -57,7 +57,18 @@ jobs:
             echo "keyAlias=$KEY_ALIAS"
             echo "keyPassword=$KEY_PASS"
           } > android/key.properties
-      - run: flutter build apk --release
+      - name: Restore google-services.json (optional)
+        # فقط اگر secret را گذاشته باشی اجرا می‌شود؛ وگرنه بیلد بدون فایربیس
+        # انجام می‌شود (اعلان محلی کار می‌کند، پوش ابری نه).
+        env:
+          GOOGLE_SERVICES_JSON_B64: ${{ secrets.GOOGLE_SERVICES_JSON_B64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_B64" ]; then
+            echo "No google-services.json secret; building without Firebase (local notifications only)."
+            exit 0
+          fi
+          echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > android/app/google-services.json
+      - run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
       - uses: actions/upload-artifact@v4
         with:
           name: qand-apk

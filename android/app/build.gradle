@@ -4,6 +4,13 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// پلاگین گوگل فقط وقتی فعال می‌شود که google-services.json واقعاً هست.
+// (بیلد ابری CI آن فایل را ندارد و نباید بشکند؛ در آن حالت پوش FCM
+// در ران‌تایم غیرفعال می‌ماند و اپ با اعلان محلی کار می‌کند.)
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+}
+
 // امضای ریلیز:
 // 1) اگر android/key.properties موجود باشد (بیلد محلی یا CI) از آن استفاده می‌شود.
 // 2) در نبود آن، بیلد release با کلید دیباگ امضا می‌شود (نصب مستقیم OK، انتشار استور نه)

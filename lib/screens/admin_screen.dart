@@ -5,6 +5,7 @@ import '../theme/qand_theme.dart';
 import '../models/order.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../services/order_service.dart';
 import '../services/settings_service.dart';
 import '../services/product_repository.dart';
@@ -24,6 +25,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   List<QandOrder> _orders = [];
   List<Product> _products = demoProducts;
   bool _isAdmin = false;
+  bool _usingDefaultPass = false;
+  // برای اعلان سفارش جدید: اولین بار فقط خط‌مبنا، بعدش تفاوت‌ها اعلان می‌شوند.
+  bool _ordersBaselineDone = false;
+  Set<String> _knownOrderIds = {};
   final _card = TextEditingController();
   final _owner = TextEditingController();
   final _zarin = TextEditingController();
@@ -51,16 +56,30 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final orders = await OrderService().all(isAdmin: admin);
     final s = await SettingsService().load();
     final prods = await ProductRepository().loadActiveWithSource();
+    final usingDefault = admin ? await AuthService().isUsingDefaultAdminPassword() : false;
+    // اعلان سفارش‌های جدید (فقط از دومین بار به بعد تا باز شدن اول اسپم نشود)
+    final freshIds = {for (final o in orders) o.id};
+    final isRefresh = _ordersBaselineDone;
+    final newOnes = isRefresh
+        ? orders.where((o) => !_knownOrderIds.contains(o.id)).toList()
+        : <QandOrder>[];
     if (!mounted) return;
     setState(() {
       _orders = orders.reversed.toList();
       _isAdmin = admin;
+      _usingDefaultPass = usingDefault;
+      _knownOrderIds = freshIds;
+      _ordersBaselineDone = true;
       _card.text = s['card'] ?? '';
       _owner.text = s['owner'] ?? '';
       _zarin.text = s['zarin'] ?? '';
       // لیست واقعی (حتی خالی) — تا مدیر بفهمد فروشگاه واقعا خالی است نه دمو
       _products = prods.products;
     });
+    for (final o in newOnes) {
+      // ignore: unawaited_futures
+      NotificationService().showNewOrder(o);
+    }
   }
 
   Future<void> _setStatus(QandOrder o, String st) async {
@@ -87,6 +106,30 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     if (res != OrderService.updateOk) return;
     await _load();
+  }
+
+  Future<void> _delete(QandOrder o) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('حذف سفارش؟'),
+        content: Text('سفارش ${o.displayCode} برای همیشه حذف شود؟'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('نه')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('بله، حذف کن')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final ok = await OrderService().deleteOrder(o.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ok ? 'حذف شد' : 'حذف ناموفق بود')));
+    if (ok) await _load();
   }
 
   Future<int?> _askPrice(int current) async {
@@ -122,7 +165,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         child: Container(
           decoration: QandTheme.headerGradient(radius: 24),
           child: SafeArea(child: Column(children: [
-            Text('پنل مدیر قند 👩‍🍳 — ${widget.username}', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            Text('پنل مدیر قند 👩‍🍳 — ${widget.username}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
             TabBar(controller: _tab, indicatorColor: Colors.white, labelColor: Colors.white, unselectedLabelColor: Colors.white70,
               tabs: const [Tab(text: 'سفارش‌ها'), Tab(text: 'محصولات'), Tab(text: 'تنظیمات')]),
           ])),
@@ -145,8 +188,20 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             Text('${o.productTitle} × ${o.qty}', style: const TextStyle(fontWeight: FontWeight.bold)),
             Text('${o.fullName} | ${o.phone}\n${o.address}\nتحویل: ${o.deliveryDate} | مبلغ: ${formatToman(o.totalPrice)}',
                 style: const TextStyle(fontSize: 13)),
+            Text(
+              'تحویل: ${Fulfillment.fa(o.fulfillment)}${o.isPickup ? '' : ' | پیک: ${formatToman(o.deliveryFee)}'}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            if (o.itemsSummary.isNotEmpty)
+              Text('اقلام: ${o.itemsSummary}',
+                  style: const TextStyle(fontSize: 12)),
+            if (o.cakeOptions.isNotEmpty)
+              Text('🎂 ${o.cakeOptions}',
+                  style: const TextStyle(fontSize: 12)),
             Text('کاربر: ${o.owner.isEmpty ? '(قدیمی/بدون مالک)' : o.owner} | ثبت: ${o.createdAt}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            SelectableText('کد پیگیری: ${o.displayCode}',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
             Text('وضعیت: ${OrderStatuses.fa(o.status)}', style: const TextStyle(fontWeight: FontWeight.bold, color: QandTheme.red)),
             if (o.receiptPath != null) _receiptThumb(o.receiptPath!),
             Wrap(spacing: 6, children: [
@@ -155,6 +210,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
               _stBtn(o, 'آماده', OrderStatuses.ready),
               _stBtn(o, 'تحویل', OrderStatuses.delivered),
               _stBtn(o, 'لغو', OrderStatuses.cancelled),
+              TextButton(
+                onPressed: () => _delete(o),
+                child: const Text('حذف',
+                    style: TextStyle(fontSize: 12, color: Colors.red)),
+              ),
             ]),
           ]),
         ));
@@ -272,33 +332,217 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   Widget _productsTab() {
+    final online = SupabaseService.isReady;
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          const Text('لیست زنده محصولات (سوپابیس وصل باشد از سرور، وگرنه دمو). ویرایش قیمت/عکس از داشبورد سوپابیس > جدول products.',
-              style: TextStyle(color: Colors.grey)),
+          Text(
+            online
+                ? 'لیست زنده از سرور. تغییر وضعیت/قیمت همین‌جا ذخیره می‌شود.'
+                : 'حالت آفلاین/دمو: ویرایش قیمت و فعال‌بودن فقط وقتی سوپابیس وصل است کار می‌کند.',
+            style: const TextStyle(color: Colors.grey),
+          ),
           for (final p in _products)
-            Card(child: ListTile(
+            Card(
+                child: ListTile(
               title: Text(p.title),
               subtitle: Text('${formatToman(p.price)} | ${p.category}\n${p.unit}'),
               isThreeLine: true,
-              trailing: const Icon(Icons.image, color: QandTheme.red),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'ویرایش قیمت',
+                    onPressed: () => _askProductPrice(p),
+                    icon: const Icon(Icons.edit, color: QandTheme.red),
+                  ),
+                  Switch(
+                    value: p.isActive,
+                    onChanged: (v) => _toggleProduct(p, v),
+                  ),
+                ],
+              ),
             )),
           const SizedBox(height: 8),
           const Card(
               child: Padding(
                   padding: EdgeInsets.all(14),
                   child: Text(
-                      '➕ افزودن/حذف محصول: در سوپابیس > Table Editor > products ردیف اضافه کن (title, category, price, unit, description, ingredients, image_url, is_active). عکس را در Storage > product-images آپلود و لینکش را در image_url بگذار.'))),
+                      '➕ افزودن محصول جدید و عکس: در سوپابیس > Table Editor > products ردیف اضافه کن (title, category, price, unit, description, ingredients, image_url, is_active). عکس را در Storage > product-images آپلود و لینکش را در image_url بگذار.'))),
         ],
       ),
     );
   }
 
+  Future<void> _toggleProduct(Product p, bool v) async {
+    if (!SupabaseService.isReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('آفلاین هستی؛ اتصال سوپابیس لازم است')));
+      return;
+    }
+    final ok = await ProductRepository().setActive(p.id, v);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ok ? 'وضعیت محصول عوض شد' : 'ناموفق بود')));
+    if (ok) {
+      setState(() {
+        final i = _products.indexWhere((e) => e.id == p.id);
+        if (i != -1) _products[i] = p.copyWith(isActive: v);
+      });
+    }
+  }
+
+  Future<void> _askProductPrice(Product p) async {
+    if (!SupabaseService.isReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('آفلاین هستی؛ اتصال سوپابیس لازم است')));
+      return;
+    }
+    _price.text = '${p.price}';
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('قیمت جدید — ${p.title} (تومان)'),
+        content: TextField(
+            controller: _price,
+            keyboardType: TextInputType.number,
+            decoration:
+                const InputDecoration(hintText: 'مثلا 450000')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('لغو')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, _price.text.trim()),
+              child: const Text('ثبت')),
+        ],
+      ),
+    );
+    if (result == null || !mounted) return;
+    final v = parsePrice(result);
+    if (v == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('مبلغ نامعتبر است (بین ۱٬۰۰۰ تا ۱٬۰۰۰٬۰۰۰٬۰۰۰ تومان)')));
+      return;
+    }
+    final ok = await ProductRepository().updatePrice(p.id, v);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(ok ? 'قیمت به‌روز شد ✅' : 'ناموفق بود')));
+    if (ok) {
+      setState(() {
+        final i = _products.indexWhere((e) => e.id == p.id);
+        if (i != -1) _products[i] = p.copyWith(price: v);
+      });
+    }
+  }
+
+  Future<void> _askChangePassword() async {
+    final oldCtl = TextEditingController();
+    final newCtl = TextEditingController();
+    final confirmCtl = TextEditingController();
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('تغییر رمز مدیر'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: oldCtl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'رمز فعلی'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: newCtl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'رمز جدید (حداقل ۶ کاراکتر)',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirmCtl,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'تکرار رمز جدید'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('لغو'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('تغییر رمز'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+      if (newCtl.text != confirmCtl.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تکرار رمز جدید مطابقت ندارد')),
+        );
+        return;
+      }
+      final res = await AuthService().changePassword(
+        username: widget.username,
+        oldPassword: oldCtl.text,
+        newPassword: newCtl.text,
+      );
+      if (!mounted) return;
+      String msg;
+      switch (res) {
+        case AuthService.changeOk:
+          msg = 'رمز با موفقیت عوض شد ✅';
+        case AuthService.changeWrongOld:
+          msg = 'رمز فعلی اشتباه است';
+        case AuthService.changeWeakNew:
+          msg = 'رمز جدید باید حداقل ۶ کاراکتر باشد';
+        case AuthService.changeSameAsOld:
+          msg = 'رمز جدید باید با قبلی فرق کند';
+        default:
+          msg = 'تغییر رمز ناموفق بود';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      if (res == AuthService.changeOk) await _load();
+    } finally {
+      oldCtl.dispose();
+      newCtl.dispose();
+      confirmCtl.dispose();
+    }
+  }
+
   Widget _settingsTab() {
     return ListView(padding: const EdgeInsets.all(16), children: [
+      if (_usingDefaultPass)
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.red.shade200),
+          ),
+          child: const Text(
+            '⚠️ هنوز با رمز پیش‌فرض (admin / 1234) وارد می‌شوی! همین حالا از دکمه «تغییر رمز مدیر» رمز را عوض کن.',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+        ),
+      OutlinedButton.icon(
+        onPressed: _askChangePassword,
+        icon: const Icon(Icons.lock_reset),
+        label: const Text('تغییر رمز مدیر'),
+      ),
+      const SizedBox(height: 14),
       const Text('شماره کارت و زرین‌پال (ذخیره فقط لوکال/دمو؛ برای همه‌ی کاربران از داشبورد سوپابیس > app_settings به‌روز کن)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       const SizedBox(height: 10),
       TextField(
@@ -340,7 +584,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         // داشبورد سوپابیس است و نوشتن از کلاینت (با anon key) از RLS رد می‌شود.
         await SettingsService().saveLocalMirror(card: _card.text.trim(), owner: owner, zarin: zarin);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(SupabaseService.isReady
               ? 'ذخیره لوکال شد؛ برای همه‌ی کاربران از داشبورد سوپابیس به‌روز کن'
               : 'ذخیره شد ✅'),

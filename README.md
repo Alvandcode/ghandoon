@@ -49,7 +49,8 @@ flutter run --dart-define=SUPABASE_URL=https://xyz.supabase.co --dart-define=SUP
 ### وضعیت اتصال (شفاف)
 - ✅ محصولات: سوپابیس (جدول `products`) با fallback دمو فقط در حالت آفلاین/خطا. اگر سوپابیس وصل باشد و جدول خالی باشد، پیام «فعلاً محصولی نیست» نمایش داده می‌شود (نه محصولات دمو).
 - ✅ تنظیمات (کارت/زرین‌پال): فقط-خواندنی از سوپابیس (`app_settings` ردیف 1) با آینه لوکال برای آفلاین.
-- ⏳ سفارش‌ها: فعلا لوکال (SharedPreferences) — یعنی سفارش‌ها فقط روی دستگاه ثبت‌کننده دیده می‌شوند. مهاجرت به Supabase Auth لازم است تا چرخه‌ی سفارش بین مدیر و مشتری واقعا کار کند.
+- ✅ سفارش‌ها: دوحالته — اگر سوپابیس وصل باشد جدول `orders` منبع حقیقت است (مدیر و مشتری روی دو گوشی همدیگر را می‌بینند) با آینه لوکال برای آفلاین؛ وگرنه کاملاً لوکال. ستون‌های جدید (`tracking_code` ،`fulfillment` ،`delivery_fee` ،`items_summary` ،`cake_options`) با اجرای دوباره `schema.sql` اضافه می‌شوند.
+- ✅ اعلان: محلی سر رفرش (بدون نیاز به چیزی) + پوش واقعی FCM بعد از راه‌اندازی یک‌باره بخش «پوش واقعی» پایین.
 - ⏳ چت: تاریخچه لوکال ماندگار (200 پیام آخر)؛ تا اتصال جدول `messages`، چت در «حالت دمو» است و هدرش همین را صادقانه نشان می‌دهد.
 
 ### امنیت سوپابیس (مهم)
@@ -57,6 +58,40 @@ flutter run --dart-define=SUPABASE_URL=https://xyz.supabase.co --dart-define=SUP
 - `products` و `app_settings`: خواندن عمومی، نوشتن فقط با service_role.
 - تغییر شماره کارت/زرین‌پال فقط از داشبورد سوپابیس (Table Editor) انجام شود — نه از اپ.
 - `orders`/`messages`/`profiles`: تا مهاجرت به Supabase Auth هیچ دسترسی کلاینتی باز نیست.
+
+## پوش واقعی (FCM) — راه‌اندازی یک‌باره
+
+بدون این قدم‌ها، اعلان فقط «محلی سر رفرش» کار می‌کند (مدیر با باز کردن پنل، مشتری با باز کردن پیگیری). برای پوش واقعی حتی وقتی اپ بسته است:
+
+**۱. فایربیس (کنسول گوگل):**
+1. در [Firebase Console](https://console.firebase.google.com) پروژه بساز.
+2. Add app → Android با package name دقیق `com.qand.app` (از `android/app/build.gradle`).
+3. فایل `google-services.json` را دانلود و دقیقاً در `android/app/google-services.json` بگذار (کامیت نشود — در `.gitignore` است).
+   خط‌های گردل لازم از قبل در ریپو هست و خودکار فقط وقتی فعال می‌شوند که همین فایل وجود داشته باشد؛ چیزی را دستی عوض نکن.
+4. در کنسول فایربیس → Project settings → Service accounts → Generate new private key (فایل JSON).
+
+**۲. سوپابیس (Edge Functions):**
+```bash
+supabase functions deploy push-fanout
+supabase functions deploy register-push-token
+supabase secrets set FIREBASE_SERVICE_ACCOUNT_JSON='<محتوای کامل فایل JSON مرحله قبل>'
+# اختیاری ولی پیشنهادی:
+supabase secrets set PUSH_WEBHOOK_SECRET='<یک رشته تصادفی بلند>'
+```
+(فایل‌ها: `supabase/functions/push-fanout` و `register-push-token` — آماده‌اند.)
+
+**۳. وب‌هوک‌های دیتابیس (داشبورد سوپابیس → Database → Webhooks → Create):**
+1. وب‌هوک `orders-insert`: جدول `orders`، رویداد `INSERT`، آدرس `https://xyz.supabase.co/functions/v1/push-fanout`، هدر `x-webhook-secret` (همان مقدار مرحله ۲).
+2. وب‌هوک `orders-update`: جدول `orders`، رویداد `UPDATE`، همان آدرس و هدر.
+3. `supabase/schema.sql` را دوباره اجرا کن (ستون `profiles.fcm_token` اضافه می‌شود؛ اجرای چندباره امن است).
+
+**۴. تست:**
+- اپ را با `--dart-define` سوپابیس روی دو گوشی نصب کن (یکی مدیر، یکی مشتری).
+- مشتری سفارش بدهد → روی گوشی مدیر (حتی بسته) اعلان «سفارش جدید 🧁» می‌آید.
+- مدیر مبلغ/وضعیت را عوض کند → روی گوشی مشتری اعلان فارسی وضعیت می‌آید.
+- زدن روی اعلان، تب درست (پیگیری/مدیر) را باز می‌کند.
+
+نکته فنی: تاپیک مدیر `orders_admin` و تاپیک هر کاربر `user_<نام‌کاربری-encodeشده>` است (منطق مشترک در `lib/utils/push_topics.dart` و داخل فایل `supabase/functions/push-fanout/index.ts` — هر دو تک‌فایل و بدون import هستند تا مستقیم در ادیتور داشبورد بچسبند؛ اگر عوض کردی هر دو را عوض کن).
 
 ## ادمین
 - ورود اولیه با اعتبارنامه پیش‌فرض ادمین (مستند در `lib/services/auth_service.dart`)؛ **بلافاصله بعد از اولین ورود عوضش کن.** (روی صفحه لاگین نمایش داده نمی‌شود)

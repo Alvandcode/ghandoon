@@ -3,8 +3,12 @@ import '../theme/qand_theme.dart';
 import '../data/demo_products.dart';
 import '../models/product.dart';
 import '../services/auth_service.dart';
+import '../services/cart_service.dart';
 import '../services/product_repository.dart';
+import '../services/push_service.dart';
 import '../widgets/product_image.dart';
+import 'cart_screen.dart';
+import 'custom_cake_screen.dart';
 import 'product_detail_screen.dart';
 import 'track_order_screen.dart';
 import 'chat_screen.dart';
@@ -26,16 +30,24 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Product> _products = demoProducts;
   // «سوپابیس وصل است ولی فروشگاه خالی» — جدا از حالت آفلاین
   bool _supabaseEmpty = false;
+  int _cartCount = 0;
 
   @override
   void initState() {
     super.initState();
     // نقش فقط از AuthService (نه مقایسه رشته username) تا با دست‌کاری
     // آرگومان HomeScreen نتوان نقش مدیر را جعل کرد.
-    AuthService().isAdmin().then((v) {
+    AuthService().isAdmin().then((v) async {
       if (!mounted) return;
       setState(() => _isAdmin = v);
+      // پوش: عضویت در تاپیک شخصی (+ تاپیک مدیران)؛ بدون فایربیس false
+      // می‌دهد و اپ با همان اعلان محلی ادامه می‌دهد.
+      await PushService()
+          .init(username: widget.username, isAdmin: v)
+          .catchError((_) => false);
+      _drainPushTap();
     });
+    _refreshCartCount();
     // محصولات سرور — بدون بلاک کردن UI
     ProductRepository().loadActiveWithSource().then((r) {
       if (!mounted) return;
@@ -56,13 +68,34 @@ class _HomeScreenState extends State<HomeScreen> {
       ? demoProducts.first
       : _products[_selected.clamp(0, _products.length - 1)];
 
+  Future<void> _refreshCartCount() async {
+    final n = await CartService().count(widget.username);
+    if (!mounted) return;
+    setState(() => _cartCount = n);
+  }
+
+  Future<void> _openCart() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CartScreen(username: widget.username)),
+    );
+    _refreshCartCount();
+  }
+
+  /// اگر اپ با زدن روی اعلان باز شده باشد، به تب درست می‌رویم.
+  void _drainPushTap() {
+    final id = PushService().consumeTap();
+    if (id == null || !mounted) return;
+    setState(() => _tab = _isAdmin ? 3 : 1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _tab == 0 ? _homeBody() : _tab == 1
           ? TrackOrderScreen(username: widget.username)
           : _tab == 2
-              ? const ChatScreen()
+              ? const ChatScreen(showBackButton: false)
               : AdminScreen(username: widget.username),
       bottomNavigationBar: Container(
         margin: const EdgeInsets.all(16),
@@ -84,7 +117,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _nav(IconData ic, int i) {
     final on = _tab == i;
     return IconButton(
-      onPressed: () => setState(() => _tab = i),
+      onPressed: () {
+        setState(() => _tab = i);
+        _drainPushTap();
+      },
       icon: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(color: on ? QandTheme.red : Colors.transparent, shape: BoxShape.circle),
@@ -102,7 +138,48 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Text('سلام ${widget.username} 👋', style: const TextStyle(color: Colors.white, fontSize: 18)),
-              const CircleAvatar(backgroundColor: Colors.white24, child: Icon(Icons.notifications_none, color: Colors.white)),
+              Row(children: [
+                // سبد خرید با نشان تعداد
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.white24,
+                      child: IconButton(
+                        tooltip: 'سبد خرید',
+                        onPressed: _openCart,
+                        icon: const Icon(Icons.shopping_cart_outlined,
+                            color: Colors.white),
+                      ),
+                    ),
+                    if (_cartCount > 0)
+                      Positioned(
+                        left: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                              color: Colors.white, shape: BoxShape.circle),
+                          child: Text('$_cartCount',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: QandTheme.red)),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                // دکمه اعلان قبلاً هیچ کاری نمی‌کرد؛ حالا به تب پیگیری می‌رود.
+                CircleAvatar(
+                  backgroundColor: Colors.white24,
+                  child: IconButton(
+                    tooltip: 'پیگیری سفارش‌ها',
+                    onPressed: () => setState(() => _tab = 1),
+                    icon: const Icon(Icons.notifications_none,
+                        color: Colors.white),
+                  ),
+                ),
+              ]),
             ]),
             const SizedBox(height: 6),
             const Text('امروز چی برات بپزم؟', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
@@ -165,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       margin: const EdgeInsets.symmetric(vertical: 10),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(20)),
-                      child: const Text('🛒 فعلاً محصولی برای فروش فعال نیست؛ بعداً سر بزن.', style: const TextStyle(fontSize: 13)),
+                      child: const Text('🛒 فعلاً محصولی برای فروش فعال نیست؛ بعداً سر بزن.', style: TextStyle(fontSize: 13)),
                     ),
                   if (!_supabaseEmpty) ...[
                     Container(
@@ -177,8 +254,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailScreen(product: current, username: widget.username))),
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => ProductDetailScreen(
+                                    product: current,
+                                    username: widget.username))).then(
+                            (_) => _refreshCartCount()),
                         child: const Text('ادامه'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => CustomCakeScreen(
+                                    username: widget.username))).then(
+                            (_) => _refreshCartCount()),
+                        icon: const Icon(Icons.cake),
+                        label: const Text('کیک تولد سفارشی بساز 🎂'),
                       ),
                     ),
                   ],

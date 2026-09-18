@@ -49,6 +49,80 @@ void main() {
       expect(await s.login('spacing_test ', 'pass1234 '), isFalse);
       expect(await s.login('spacing_test', 'pass1234'), isTrue);
     });
+
+    test('تغییر رمز: مسیر موفق + ورود با رمز جدید', () async {
+      SharedPreferences.setMockInitialValues({});
+      final s = AuthService();
+      await s.register('sara_cp', 'oldpass1');
+      expect(
+        await s.changePassword(
+          username: 'sara_cp',
+          oldPassword: 'oldpass1',
+          newPassword: 'newpass22',
+        ),
+        AuthService.changeOk,
+      );
+      expect(await s.login('sara_cp', 'oldpass1'), isFalse);
+      expect(await s.login('sara_cp', 'newpass22'), isTrue);
+    });
+
+    test('تغییر رمز: رمز قبلی اشتباه / رمز ضعیف / تکراری', () async {
+      SharedPreferences.setMockInitialValues({});
+      final s = AuthService();
+      await s.register('nima_cp', 'oldpass1');
+      expect(
+        await s.changePassword(
+          username: 'nima_cp',
+          oldPassword: 'wrong',
+          newPassword: 'newpass22',
+        ),
+        AuthService.changeWrongOld,
+      );
+      expect(
+        await s.changePassword(
+          username: 'nima_cp',
+          oldPassword: 'oldpass1',
+          newPassword: '123',
+        ),
+        AuthService.changeWeakNew,
+      );
+      expect(
+        await s.changePassword(
+          username: 'nima_cp',
+          oldPassword: 'oldpass1',
+          newPassword: 'oldpass1',
+        ),
+        AuthService.changeSameAsOld,
+      );
+      expect(
+        await s.changePassword(
+          username: 'no_such',
+          oldPassword: 'x',
+          newPassword: 'newpass22',
+        ),
+        AuthService.changeNoUser,
+      );
+    });
+
+    test('تشخیص رمز پیش‌فرض ادمین', () async {
+      SharedPreferences.setMockInitialValues({});
+      final s = AuthService();
+      // هنوز حسابی نیست → اولین ورود با 1234 باز است
+      expect(await s.isUsingDefaultAdminPassword(), isTrue);
+      expect(await s.login('admin', '1234'), isTrue);
+      expect(await s.isUsingDefaultAdminPassword(), isTrue);
+      expect(
+        await s.changePassword(
+          username: 'admin',
+          oldPassword: '1234',
+          newPassword: 'admin-strong-9',
+        ),
+        AuthService.changeOk,
+      );
+      expect(await s.isUsingDefaultAdminPassword(), isFalse);
+      expect(await s.login('admin', '1234'), isFalse);
+      expect(await s.login('admin', 'admin-strong-9'), isTrue);
+    });
   });
 
   group('OrderService — حریم خصوصی + اعتبارسنجی', () {
@@ -177,6 +251,104 @@ void main() {
 
       expect(base('/data/user/0/com.qand.app/cache/abc.jpg'), 'abc.jpg');
       expect(base(r'C:\Users\a\img.png'), 'img.png');
+    });
+  });
+
+  group('Orders چنددستگاهی — کد پیگیری/لغو/حذف/مپر', () {
+    QandOrder makeT(String id, String owner, {String status = OrderStatuses.pending}) =>
+        QandOrder(
+          id: id,
+          productId: 'p1',
+          productTitle: 'کیک',
+          qty: 1,
+          persons: 2,
+          fullName: 'تست',
+          phone: '09130000000',
+          address: 'آدرس دقیق تستی برای بررسی',
+          deliveryDate: '1405/06/20',
+          note: '',
+          status: status,
+          totalPrice: 1000,
+          createdAt: 'x',
+          owner: owner,
+        );
+
+    test('کد پیگیری فرمت درست و بدون کاراکتر گمراه‌کننده', () {
+      final c = generateTrackingCode(
+        random: (_) => 0,
+        now: DateTime.fromMillisecondsSinceEpoch(0),
+      );
+      expect(c.startsWith('QND-'), isTrue);
+      expect(c.length, 10);
+      expect(RegExp(r'^QND-[A-HJ-NP-Z2-9]{6}$').hasMatch(c), isTrue);
+    });
+
+    test('displayCode: کد پیگیری اولویت دارد وگرنه id کوتاه', () {
+      expect(makeT('id-1', 'ali').copyWith(trackingCode: 'QND-ABC123').displayCode,
+          'QND-ABC123');
+      expect(makeT('short', 'ali').displayCode, 'short');
+      expect(makeT('123456789abcdef', 'ali').displayCode, '12345678');
+    });
+
+    test('مپر: id غیر-uuid فرستاده نمی‌شود ولی uuid چرا', () {
+      final local = QandOrderMapper.toMap(makeT('123-456', 'ali'));
+      expect(local.containsKey('id'), isFalse);
+      expect(local['customer_username'], 'ali');
+      expect(local['product_title'], 'کیک');
+      const uuid = '550e8400-e29b-41d4-a716-446655440000';
+      final withUuid = QandOrderMapper.toMap(
+          makeT(uuid, 'ali').copyWith(trackingCode: 'QND-XYZ123'));
+      expect(withUuid['id'], uuid);
+      expect(withUuid['tracking_code'], 'QND-XYZ123');
+    });
+
+    test('مپر: خواندن هر دو نام‌گذاری قدیمی/جدید', () {
+      final o = QandOrderMapper.fromMap({
+        'id': 'r1',
+        'full_name': 'رضا',
+        'delivery_date': '1405/01/01',
+        'total_price': 5000,
+        'receipt_url': 'https://x/r.jpg',
+        'created_at': 't',
+        'customer_username': 'reza',
+        'product_title': 'کوکی',
+        'tracking_code': 'QND-111111',
+      });
+      expect(o.owner, 'reza');
+      expect(o.productTitle, 'کوکی');
+      expect(o.trackingCode, 'QND-111111');
+      expect(o.receiptPath, 'https://x/r.jpg');
+    });
+
+    test('add کد پیگیری می‌سازد و برمی‌گرداند (آفلاین)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final svc = OrderService();
+      final saved = await svc.add(makeT('id-t1', 'ali'));
+      expect(saved.trackingCode.startsWith('QND-'), isTrue);
+      final fresh = await svc.byId('id-t1');
+      expect(fresh!.trackingCode, saved.trackingCode);
+    });
+
+    test('لغو توسط مشتری: فقط مالک و فقط pending/awaiting', () async {
+      SharedPreferences.setMockInitialValues({});
+      final svc = OrderService();
+      await svc.add(makeT('c1', 'ali'));
+      await svc.add(makeT('c2', 'reza'));
+      await svc.add(makeT('c3', 'ali', status: OrderStatuses.delivered));
+      expect(await svc.cancelByUser('c1', 'ali'), OrderService.updateOk);
+      expect((await svc.byId('c1'))!.status, OrderStatuses.cancelled);
+      expect(await svc.cancelByUser('c2', 'ali'), OrderService.cancelForbidden);
+      expect(await svc.cancelByUser('c3', 'ali'), OrderService.cancelNotAllowed);
+      expect(await svc.cancelByUser('missing', 'ali'), OrderService.updateNotFound);
+    });
+
+    test('حذف سفارش توسط مدیر', () async {
+      SharedPreferences.setMockInitialValues({});
+      final svc = OrderService();
+      await svc.add(makeT('d1', 'ali'));
+      expect(await svc.deleteOrder('d1'), isTrue);
+      expect(await svc.byId('d1'), isNull);
+      expect(await svc.deleteOrder('d1'), isFalse);
     });
   });
 }

@@ -7,7 +7,10 @@ import '../config/app_config.dart';
 import '../services/supabase_service.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  /// وقتی چت داخل تب خانه جاسازی شده، دکمه برگشت نباید `pop` کند
+  /// (روتی برای برگشت نیست و اپ می‌پرد). در این حالت false بده.
+  final bool showBackButton;
+  const ChatScreen({super.key, this.showBackButton = true});
   @override
   State<ChatScreen> createState() => _ChatScreenState();
 }
@@ -124,7 +127,8 @@ class _ChatScreenState extends State<ChatScreen> {
         preferredSize: const Size.fromHeight(90),
         child: Container(decoration: QandTheme.headerGradient(radius: 24),
           child: SafeArea(child: Row(children: [
-            IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_forward, color: Colors.white)),
+            if (widget.showBackButton)
+              IconButton(onPressed: () => Navigator.maybePop(context), icon: const Icon(Icons.arrow_forward, color: Colors.white)),
             const CircleAvatar(backgroundColor: Colors.white, child: Text('👩‍🍳')),
             const SizedBox(width: 8),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

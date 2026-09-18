@@ -6,6 +6,7 @@ import '../models/product.dart';
 import '../models/order.dart';
 import '../services/order_service.dart';
 import '../utils/format.dart';
+import '../utils/order_rules.dart';
 import 'track_order_screen.dart';
 
 class OrderFormScreen extends StatefulWidget {
@@ -24,7 +25,17 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   final _note = TextEditingController();
   int _qty = 1;
   int _persons = 4;
-  DateTime _date = DateTime.now().add(const Duration(days: 2));
+  late DateTime _date;
+
+  @override
+  void initState() {
+    super.initState();
+    // تاریخ پیش‌فرض = حداقل زمان آماده‌سازی همان محصول (کیک تولد ۳ روز و...)
+    _date = minOrderDate(
+      productId: widget.product.id,
+      category: widget.product.category,
+    );
+  }
 
   @override
   void dispose() {
@@ -33,15 +44,17 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
-    // شروع امروز (بدون ساعت) تا انتخاب «امروز» هم همیشه ممکن باشد؛
-    // قبلا firstDate با ساعت فعلی بود و در ساعات پایانی روز، امروز غیرقابل انتخاب می‌شد.
-    final today = DateTime(now.year, now.month, now.day);
+    // حداقل lead همان محصول؛ قبلاً همه «از امروز» بودند و کیک تولدِ امروز هم قبول می‌شد.
+    final minDate = minOrderDate(
+      productId: widget.product.id,
+      category: widget.product.category,
+    );
     final d = await showDatePicker(
       context: context,
-      initialDate: _date.isBefore(today) ? today : _date,
-      firstDate: today,
-      lastDate: today.add(const Duration(days: 90)),
+      initialDate: _date.isBefore(minDate) ? minDate : _date,
+      firstDate: minDate,
+      lastDate: DateTime(minDate.year, minDate.month, minDate.day)
+          .add(const Duration(days: 90)),
     );
     if (d != null) setState(() => _date = d);
   }
@@ -71,10 +84,12 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       totalPrice: widget.product.price * _qty,
       createdAt: DateTime.now().toIso8601String(),
       owner: widget.username,
+      trackingCode: generateTrackingCode(),
     );
-    await OrderService().add(order);
+    final saved = await OrderService().add(order);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سفارشت ثبت شد، منتظر اعلام مبلغ توسط مدیر باش 🌸')));
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('سفارشت ثبت شد 🌸 کد پیگیری: ${saved.displayCode}')));
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => TrackOrderScreen(username: widget.username)));
   }
 
@@ -84,12 +99,20 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره تماس باید مثل 09130000000 باشد (ارقام فارسی هم قبول است)')));
       return false;
     }
-    // تاریخ نباید در گذشته باشد (اگر کاربر خیلی دیر ثبت کند)
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final picked = DateTime(_date.year, _date.month, _date.day);
-    if (picked.isBefore(today)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تاریخ تحویل نمی‌تواند در گذشته باشد')));
+    // تاریخ باید حداقل lead همان محصول را رعایت کند (نه فقط «نه در گذشته»).
+    if (!isOrderDateAllowed(
+      picked: _date,
+      productId: widget.product.id,
+      category: widget.product.category,
+    )) {
+      final lead = minLeadDaysForProduct(
+        productId: widget.product.id,
+        category: widget.product.category,
+      );
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'این محصول حداقل $lead روز زمان آماده‌سازی می‌خواهد؛ تاریخ دیگری انتخاب کن 🙏')));
       return false;
     }
     return true;
@@ -123,6 +146,13 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
             subtitle: Text(_jalali(_date)),
             trailing: const Icon(Icons.edit),
             onTap: _pickDate,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6, right: 4),
+            child: Text(
+              '⏳ آماده‌سازی این محصول حداقل ${minLeadDaysForProduct(productId: widget.product.id, category: widget.product.category)} روز زمان می‌برد.',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
           ),
           const SizedBox(height: 12),
           _field(_note, 'توضیح اضافه (اختیاری)', Icons.note_alt_outlined, lines: 2, maxLen: 500),
