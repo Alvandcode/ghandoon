@@ -9,3 +9,7 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -dontwarn javax.annotation.**
+
+# موتور فلاتر به کلاس‌های Play Core ارجاع می‌دهد که فقط در نصب از گوگل‌پلی لازم‌اند؛
+# در APK نصب مستقیم غایب‌اند و R8 نباید به‌خاطرشان بیلد را بشکند.
+-dontwarn com.google.android.play.core.**
