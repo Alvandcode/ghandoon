@@ -84,4 +84,7 @@ flutter {
 dependencies {
     // بک‌پورت APIهای جاوا برای اندرویدهای قدیمی (minSdk همان 24 می‌ماند)
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.5"
+    // کلاس‌های Play Core که موتور فلاتر به آن‌ها ارجاع می‌دهد؛
+    // بدون این وابستگی، R8 در بیلد ریلیز با خطای Missing class می‌شکند.
+    implementation "com.google.android.play:core:1.10.3"
 }
