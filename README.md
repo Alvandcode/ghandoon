@@ -2,13 +2,13 @@
 
 [![Stars](https://img.shields.io/github/stars/Alvandcode/qand-app?style=flat-square)](https://github.com/Alvandcode/qand-app/stargazers) [![License](https://img.shields.io/github/license/Alvandcode/qand-app?style=flat-square)](./LICENSE) [![Last commit](https://img.shields.io/github/last-commit/Alvandcode/qand-app?style=flat-square)](https://github.com/Alvandcode/qand-app/commits)
 
-> Flutter ordering app for a confectionery (Android 7–15) with Supabase backend — categories, order form, receipt upload, admin panel.
+> Flutter ordering app for a confectionery (Android 7–17) with Supabase backend — categories, order form, receipt upload, admin panel.
 
 <div dir="rtl">
 
 ## اپ سفارش قنادی قند
 
-اپلیکیشن سفارش قنادی با فلاتر برای اندروید ۷ تا ۱۵ با بک‌اند سوپابیس؛ دسته‌بندی محصولات، فرم سفارش، آپلود فیش و پنل مدیریت.
+اپلیکیشن سفارش قنادی با فلاتر برای اندروید ۷ تا ۱۷ با بک‌اند سوپابیس؛ دسته‌بندی محصولات، فرم سفارش، آپلود فیش و پنل مدیریت.
 
 </div>
 
@@ -16,7 +16,7 @@
 
 # قنادی قند 🍰 — qand-app
 
-اپ اندروید (7 تا 15) سفارش قنادی با Flutter + Supabase (با fallback آفلاین).
+اپ اندروید (7 تا 17) سفارش قنادی با Flutter + Supabase (با fallback آفلاین).
 
 ## فلو
 1. انتخاب دسته (کیک خونگی / کوکی / بیسکوییت / کیک تولد) → ادامه
@@ -24,6 +24,26 @@
 3. فرم سفارش (تعداد، نفرات، نام، موبایل، آدرس دقیق حداقل ۱۰ کاراکتر، تاریخ شمسی)
 4. انتظار اعلام مبلغ توسط مدیر (تا اعلام نشود دکمه پرداخت قفل است) → پرداخت کارت‌به‌کارت (شماره کارت فقط از داشبورد سوپابیس تغییر می‌کند) + زرین‌پال (پیش‌فرض خالی، بعدا)
 5. آپلود فیش → تایید مدیر → تحویل
+
+## نصب آماده (APK) / Install the APK (end users)
+
+- EN: No build needed — open the [Releases](https://github.com/alvandcode/qand-app/releases) tab, download `qand-app.apk` (the `app-release.apk` build), and install it on your phone. If Android blocks the install, enable **Install unknown apps (Unknown sources)** for your browser or file manager, then install again.
+
+<div dir="rtl">
+
+- FA: بدون نیاز به بیلد — از تب [ریلیزها](https://github.com/alvandcode/qand-app/releases) فایل `qand-app.apk` (همان بیلد `app-release.apk`) را دانلود و روی گوشی نصب کنید. اگر اندروید جلوی نصب را گرفت، گزینه **نصب برنامه‌های ناشناس (Unknown sources)** را برای مرورگر یا مدیر فایل فعال کنید و دوباره نصب کنید.
+
+</div>
+
+## پیش‌نیازها / Prerequisites
+
+- EN: **Flutter** stable channel (CI builds with `stable`), **Dart** SDK `>=3.2.0 <4.0.0` (see `pubspec.yaml`), **Android Studio** (with Android SDK + platform-tools), and **JDK 17** (CI uses Temurin 17).
+
+<div dir="rtl">
+
+- FA: **فلاتر** کانال stable (بیلد CI با `stable` انجام می‌شود)، **دارت** `>=3.2.0 <4.0.0` (طبق `pubspec.yaml`)، **اندروید استودیو** (همراه Android SDK و platform-tools) و **JDK 17** (در CI از Temurin 17 استفاده می‌شود).
+
+</div>
 
 ## اجرا
 ```bash
@@ -98,7 +118,7 @@ supabase secrets set PUSH_WEBHOOK_SECRET='<یک رشته تصادفی بلند>'
 - تب مدیر: تغییر وضعیت سفارش، ثبت مبلغ، تایید فیش (با بزرگ‌نمایی لمسی)، مشاهده تنظیمات
 - شماره کارت پیش‌فرض فقط در حالت دمو/آفلاین نشان داده می‌شود — برای همه‌ی کاربران از داشبورد سوپابیس (`app_settings`) به‌روزش کن
 
-## پشتیبانی اندروید 7 تا 15
+## پشتیبانی اندروید 7 تا 17
 `minSdk 24` و `targetSdk 35` در `android/app/build.gradle` تنظیم شده.
 بکاپ ابری/انتقال دستگاه غیرفعال است (داده‌های حساس سفارش‌ها خارج از دستگاه کپی نمی‌شوند).
 
@@ -108,8 +128,35 @@ supabase secrets set PUSH_WEBHOOK_SECRET='<یک رشته تصادفی بلند>'
 - برای CI: secrets های `ANDROID_KEYSTORE_BASE64/PASSWORD/ALIAS/PASSWORD` را در GitHub بگذار؛ workflow خودش `key.properties` می‌سازد.
 - `key.properties` و هر `*.jks` هرگز کامیت نمی‌شوند (در `.gitignore` هستند).
 
-## عکس‌ها
+## عیب‌یابی / Troubleshooting
+
+- EN:
+  - **Supabase URL/KEY missing or wrong** → the app keeps working in local (demo/offline) mode; products and settings fall back to the on-device mirror. Re-run with `--dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...` and double-check the values (anon key, not service_role).
+  - **`google-services.json` missing** → the build still succeeds (the Gradle plugin only applies when the file exists) but real push stays off and notifications work as local «on-refresh» only. Place the file at `android/app/google-services.json` (never commit it) to enable FCM.
+  - **Supabase access (RLS) errors or empty data** → client access to `orders`/`messages`/`profiles` is intentionally closed until the Supabase Auth migration (by design). Re-run `supabase/schema.sql` in the SQL Editor (idempotent) and make sure the `product-images` (public) and `receipts` buckets exist.
+
+<div dir="rtl">
+
+- FA:
+  - **آدرس یا کلید سوپابیس اشتباه/خالی** ← اپ در حالت لوکال (دمو/آفلاین) به کار ادامه می‌دهد؛ با `--dart-define=SUPABASE_URL=... --dart-define=SUPABASE_ANON_KEY=...` اجرا کنید و مقادیر را چک کنید (کلید anon، نه service_role).
+  - **نبود `google-services.json`** ← بیلد موفق می‌ماند (پلاگین گردل فقط وقتی فایل هست فعال می‌شود) ولی پوش واقعی غیرفعال است و اعلان فقط «محلی سر رفرش» کار می‌کند؛ فایل را در `android/app/google-services.json` بگذارید (کامیت نشود).
+  - **خطای دسترسی سوپابیس (RLS) یا خالی بودن داده‌ها** ← دسترسی کلاینتی به `orders`/`messages`/`profiles` تا مهاجرت به Supabase Auth عمداً بسته است؛ `supabase/schema.sql` را دوباره در SQL Editor اجرا کنید (اجرای چندباره امن است) و مطمئن شوید باکت‌های `product-images` (public) و `receipts` ساخته شده‌اند.
+
+</div>
+
+## عکس‌ها / Screenshots
 ببین: `assets/README_ASSETS.md`
+
+![Home artwork](assets/images/chef.png)
+![Homemade cake artwork](assets/images/cupcake.png)
+
+- EN: Release screenshots (if any) are attached to the [Releases](https://github.com/alvandcode/qand-app/releases) page.
+
+<div dir="rtl">
+
+- FA: اسکرین‌شات‌های هر نسخه (در صورت وجود) در صفحه [ریلیزها](https://github.com/alvandcode/qand-app/releases) است؛ دو تصویر بالا، از تصاویر داخل خود اپ هستند.
+
+</div>
 
 ---
 
