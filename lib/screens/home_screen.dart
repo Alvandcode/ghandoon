@@ -107,7 +107,9 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _nav(Icons.home, 0),
             _nav(Icons.receipt_long, 1),
-            _nav(Icons.chat_bubble_outline, 2),
+            // چت پایین صفحه فقط برای مشتری است؛ مدیر «تب پیام‌ها» را در پنل دارد.
+            // (قبلاً برای مدیر گفتگوی خالی با خودش باز می‌شد)
+            if (!_isAdmin) _nav(Icons.chat_bubble_outline, 2),
             if (_isAdmin) _nav(Icons.admin_panel_settings_outlined, 3),
             IconButton(onPressed: _logout, icon: const Icon(Icons.logout, color: Colors.grey)),
           ],

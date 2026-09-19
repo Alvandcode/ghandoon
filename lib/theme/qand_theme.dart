@@ -80,8 +80,12 @@ class QandTheme {
       chipTheme: const ChipThemeData(
         selectedColor: red,
         secondarySelectedColor: red,
-        labelStyle: TextStyle(color: Colors.white),
+        backgroundColor: Colors.white,
+        // دکمه انتخاب‌نشده: پس‌زمینه روشن → متن تیره (وگرنه سفید روی سفید می‌شود!)
+        labelStyle: TextStyle(color: ink),
+        // دکمه انتخاب‌شده: پس‌زمینه قرمز → متن سفید
         secondaryLabelStyle: TextStyle(color: Colors.white),
+        checkmarkColor: Colors.white,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(12))),
       ),

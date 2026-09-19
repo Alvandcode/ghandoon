@@ -163,40 +163,50 @@ class _ChatScreenState extends State<ChatScreen> {
         preferredSize: const Size.fromHeight(90),
         child: Container(
             decoration: QandTheme.headerGradient(radius: 24),
-            child: SafeArea(
-                child: Row(children: [
-              if (widget.showBackButton)
-                IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(Icons.arrow_forward,
-                        color: Colors.white)),
-              const CircleAvatar(
-                  backgroundColor: Colors.white, child: Text('👩‍🍳')),
-              const SizedBox(width: 8),
-              Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: SafeArea(
+              child: Row(children: [
+            if (widget.showBackButton)
+              IconButton(
+                  onPressed: () => Navigator.maybePop(context),
+                  icon:
+                      const Icon(Icons.arrow_forward, color: Colors.white))
+            else
+              const SizedBox(width: 12),
+            const CircleAvatar(
+                radius: 26,
+                backgroundColor: Colors.white,
+                child: Text('👩‍🍳', style: TextStyle(fontSize: 30))),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(peerTitle,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.bold)),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            fontFamily: QandTheme.titleFont)),
                     Text(
                         _isDemo
                             ? 'حالت دمو — پیام‌ها هنوز به مدیر نمی‌رسند'
                             : 'آنلاین',
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 12)),
+                            color: Colors.white70, fontSize: 13)),
                   ]),
-              const Spacer(),
-              if (!_isAdmin) ...[
-                IconButton(
-                    onPressed: _call,
-                    icon: const Icon(Icons.call, color: Colors.white)),
-                IconButton(
-                    onPressed: _whatsapp,
-                    icon: const Icon(Icons.chat, color: Colors.white)),
-              ],
-            ]))),
+            ),
+            if (!_isAdmin) ...[
+              IconButton(
+                  onPressed: _call,
+                  icon: const Icon(Icons.call, color: Colors.white)),
+              IconButton(
+                  onPressed: _whatsapp,
+                  icon: const Icon(Icons.chat, color: Colors.white)),
+            ] else
+              const SizedBox(width: 12),
+          ]))),
       ),
       body: Column(children: [
         Expanded(

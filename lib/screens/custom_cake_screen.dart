@@ -91,6 +91,11 @@ class _CustomCakeScreenState extends State<CustomCakeScreen> {
               ChoiceChip(
                 label: Text('${w.toString().replaceAll('.0', '')} کیلو'),
                 selected: _weight == w,
+                selectedColor: QandTheme.red,
+                backgroundColor: Colors.white,
+                checkmarkColor: Colors.white,
+                labelStyle: TextStyle(
+                    color: _weight == w ? Colors.white : QandTheme.ink),
                 onSelected: (_) => setState(() => _weight = w),
               ),
           ],
@@ -105,6 +110,11 @@ class _CustomCakeScreenState extends State<CustomCakeScreen> {
               ChoiceChip(
                 label: Text(f),
                 selected: _flavor == f,
+                selectedColor: QandTheme.red,
+                backgroundColor: Colors.white,
+                checkmarkColor: Colors.white,
+                labelStyle: TextStyle(
+                    color: _flavor == f ? Colors.white : QandTheme.ink),
                 onSelected: (_) => setState(() => _flavor = f),
               ),
           ],
@@ -119,6 +129,11 @@ class _CustomCakeScreenState extends State<CustomCakeScreen> {
               ChoiceChip(
                 label: Text(f),
                 selected: _filling == f,
+                selectedColor: QandTheme.red,
+                backgroundColor: Colors.white,
+                checkmarkColor: Colors.white,
+                labelStyle: TextStyle(
+                    color: _filling == f ? Colors.white : QandTheme.ink),
                 onSelected: (_) => setState(() => _filling = f),
               ),
           ],
