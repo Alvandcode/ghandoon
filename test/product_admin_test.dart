@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:qand_app/models/product.dart';
 import 'package:qand_app/services/product_repository.dart';
+import 'package:qand_app/services/settings_service.dart';
 import 'package:qand_app/utils/product_validate.dart';
 
 void main() {
@@ -113,6 +114,18 @@ void main() {
       expect(p.copyWith(price: 5).detailImageUrl, isNull);
       expect(p.copyWith(detailImageUrl: 'https://x/d.jpg').detailImageUrl,
           'https://x/d.jpg');
+    });
+  });
+
+  group('SettingsService.save', () {
+    test('آفلاین: فقط آینه لوکال + false (نه کرش)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final ok = await SettingsService().save(
+          card: '6037991112345678', owner: 'قندون', zarin: '');
+      expect(ok, isFalse);
+      final loaded = await SettingsService().load();
+      expect(loaded['card'], '6037991112345678');
+      expect(loaded['owner'], 'قندون');
     });
   });
 }

@@ -584,7 +584,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         label: const Text('تغییر رمز مدیر'),
       ),
       const SizedBox(height: 14),
-      const Text('شماره کارت و زرین‌پال (ذخیره فقط لوکال/دمو؛ برای همه‌ی کاربران از داشبورد سوپابیس > app_settings به‌روز کن)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+      const Text('شماره کارت و زرین‌پال — ذخیره برای همه کاربران اعمال می‌شود ✅', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       const SizedBox(height: 10),
       TextField(
           controller: _card,
@@ -621,14 +621,14 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             return;
           }
         }
-        // حالت دمو/آفلاین: فقط آینه لوکال. وقتی سوپابیس وصل است سرچشمه‌ی حقیقت
-        // داشبورد سوپابیس است و نوشتن از کلاینت (با anon key) از RLS رد می‌شود.
-        await SettingsService().saveLocalMirror(card: _card.text.trim(), owner: owner, zarin: zarin);
+        // ذخیره واقعی: اول سرور (همه کاربران می‌بینند)، بعد آینه لوکال.
+        final ok = await SettingsService().save(
+            card: _card.text.trim(), owner: owner, zarin: zarin);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(SupabaseService.isReady
-              ? 'ذخیره لوکال شد؛ برای همه‌ی کاربران از داشبورد سوپابیس به‌روز کن'
-              : 'ذخیره شد ✅'),
+          content: Text(ok
+              ? 'برای همه کاربران ذخیره شد ✅'
+              : 'فقط روی همین گوشی ذخیره شد (سرور در دسترس نیست یا دسترسی‌اش باز نشده — دستور دسترسی‌ها را در سوپابیس اجرا کن)'),
         ));
       }, child: const Text('ذخیره تنظیمات')),
     ]);

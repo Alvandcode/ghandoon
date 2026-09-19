@@ -4,18 +4,15 @@ import 'supabase_service.dart';
 
 /// تنظیمات عمومی (شماره کارت + صاحب حساب + لینک زرین‌پال)
 ///
-/// ⚠️ این سرویس فقط-خواندنی است:
-/// تغییر شماره کارت/زرین‌پال فقط از داشبورد سوپابیس (با service_role) انجام شود.
-/// قبلاً upsert از کلاینت انجام می‌شد که با anon key داخل APK یعنی هر کسی
-/// می‌توانست شماره کارت را عوض کند (ریسک تقلب مالی) — این مسیر حذف شد.
-///
 /// استراتژی خواندن (بدون کرش در هر حالت):
 /// 1. اگر سوپابیس وصل است: خواندن از جدول `app_settings` (ردیف id=1).
 /// 2. همیشه آینه لوکال در SharedPreferences تا آفلاین هم کار کند.
 /// 3. در هر خطای شبکه، نسخه لوکال برگردانده می‌شود.
 ///
-/// متد [save] فقط آینه لوکال را به‌روز می‌کند (فقط برای حالت دموی آفلاین/توسعه
-/// بدون سوپابیس به کار می‌رود) و هرگز به سرور چیزی نمی‌نویسد.
+/// نوشتن با [save]: اول سرور (تا همه کاربران ببینند)، بعد آینه لوکال.
+/// پیش‌نیاز: پالیسی "app_settings demo write" روی سرور.
+/// ⚠️ تا قبل از مهاجرت به Supabase Auth، هر کسی با کلید داخل APK از نظر
+/// فنی می‌تواند این‌ها را عوض کند — شماره کارت را دوره‌ای چک کن.
 class SettingsService {
   static const _kCard = 'set_card';
   static const _kOwner = 'set_owner';
@@ -61,8 +58,35 @@ class SettingsService {
     };
   }
 
-  /// فقط آینه لوکال (حالت دمو/آفلاین). وقتی سوپابیس وصل است نوشتن از کلاینت
-  /// ممکن نیست (RLS) و نباید هم باشد؛ سرچشمه‌ی حقیقت داشبورد سوپابیس است.
+  /// ذخیره واقعی: اول سرور (تا همه کاربران ببینند)، بعد آینه لوکال.
+  /// true = روی سرور ذخیره شد؛ false = فقط لوکال (آفلاین یا دسترسی بسته).
+  /// پیش‌نیاز سمت سرور: پالیسی "app_settings demo write" (بخش دسترسی‌های اپ در README).
+  Future<bool> save({
+    required String card,
+    required String owner,
+    required String zarin,
+  }) async {
+    var remoteOk = false;
+    final client = SupabaseService.clientOrNull();
+    if (client != null) {
+      try {
+        await client.from('app_settings').update({
+          'card_number': card,
+          'card_owner': owner,
+          'zarinpal_link': zarin,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', 1);
+        remoteOk = true;
+      } catch (_) {
+        remoteOk = false;
+      }
+    }
+    await saveLocalMirror(card: card, owner: owner, zarin: zarin);
+    return remoteOk;
+  }
+
+  /// فقط آینه لوکال (برای fallback آفلاین؛ [save] خودش صدایش می‌زند).
+  /// مستقیم صدا نزن مگر در حالت دموی بدون سرور.
   Future<void> saveLocalMirror({
     required String card,
     required String owner,
