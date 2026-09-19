@@ -93,6 +93,7 @@ class ProductRepository {
     String description = '',
     String ingredients = '',
     String? imageUrl,
+    String? detailImageUrl,
     bool isActive = true,
   }) async {
     if (validateProductFields(
@@ -111,6 +112,9 @@ class ProductRepository {
         'description': description.trim(),
         'ingredients': ingredients.trim(),
         'image_url': (imageUrl ?? '').trim().isEmpty ? null : imageUrl!.trim(),
+        'detail_image_url': (detailImageUrl ?? '').trim().isEmpty
+            ? null
+            : detailImageUrl!.trim(),
         'is_active': isActive,
       }).select();
       final list = rows as List<dynamic>;
@@ -132,6 +136,7 @@ class ProductRepository {
     String description = '',
     String ingredients = '',
     String? imageUrl,
+    String? detailImageUrl,
     bool? isActive,
   }) async {
     if (validateProductFields(
@@ -153,6 +158,10 @@ class ProductRepository {
       if (imageUrl != null) {
         patch['image_url'] =
             imageUrl.trim().isEmpty ? null : imageUrl.trim();
+      }
+      if (detailImageUrl != null) {
+        patch['detail_image_url'] =
+            detailImageUrl.trim().isEmpty ? null : detailImageUrl.trim();
       }
       if (isActive != null) patch['is_active'] = isActive;
       final rows =

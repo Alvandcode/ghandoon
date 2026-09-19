@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:qand_app/models/product.dart';
 import 'package:qand_app/services/product_repository.dart';
 import 'package:qand_app/utils/product_validate.dart';
 
@@ -63,8 +64,7 @@ void main() {
     });
   });
 
-  group('ProductRepository — آفلاین', () {
-    test('ساخت/ویرایش/تغییر وضعیت آفلاین null/false می‌دهد (نه کرش)', () async {
+  group('ProductRepository — آفلاین', () {    test('ساخت/ویرایش/تغییر وضعیت آفلاین null/false می‌دهد (نه کرش)', () async {
       SharedPreferences.setMockInitialValues({});
       final repo = ProductRepository();
       expect(
@@ -87,6 +87,32 @@ void main() {
               title: '', category: 'کوکی', price: 1000, unit: 'عدد'),
           isNull);
       expect(await repo.updatePrice('x', -5), isFalse);
+    });
+  });
+
+  group('Product — عکس صفحه توضیحات', () {
+    test('fromMap ستون detail_image_url را می‌خواند', () {
+      final p = Product.fromMap({
+        'id': '1',
+        'category': 'کوکی',
+        'image_url': 'https://x/main.jpg',
+        'detail_image_url': 'https://x/detail.jpg',
+      });
+      expect(p.imageUrl, 'https://x/main.jpg');
+      expect(p.detailImageUrl, 'https://x/detail.jpg');
+    });
+
+    test('قدیمی بدون ستون جدید = null (نه کرش)', () {
+      final p = Product.fromMap({'id': '1', 'category': 'کوکی'});
+      expect(p.detailImageUrl, isNull);
+      expect(p.imageUrl, isNull);
+    });
+
+    test('copyWith عکس توضیحات را نگه می‌دارد/عوض می‌کند', () {
+      final p = Product.fromMap({'id': '1', 'category': 'کوکی'});
+      expect(p.copyWith(price: 5).detailImageUrl, isNull);
+      expect(p.copyWith(detailImageUrl: 'https://x/d.jpg').detailImageUrl,
+          'https://x/d.jpg');
     });
   });
 }

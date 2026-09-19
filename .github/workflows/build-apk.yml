@@ -68,7 +68,9 @@ jobs:
             exit 0
           fi
           echo "$GOOGLE_SERVICES_JSON_B64" | base64 -d > android/app/google-services.json
-      - run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+      # شماره بیلد از شمارنده گیت‌هاب می‌آید تا هر نسخه جدید حتماً روی
+      # قبلی نصب شود (اندروید نسخه با شماره مساوی/کمتر را قبول نمی‌کند).
+      - run: flutter build apk --release --build-number=${{ github.run_number }} --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
       - uses: actions/upload-artifact@v4
         with:
           name: qand-apk

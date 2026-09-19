@@ -184,9 +184,20 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 6),
             const Text('امروز چی برات بپزم؟', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
-            Image.asset('assets/images/chef.png', height: 190, errorBuilder: (_, __, ___) =>
-              Container(height: 190, width: 190, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: const Center(child: Text('👩‍🍳', style: TextStyle(fontSize: 90))))),
+            // لوگوی دایره‌ای قنادی — ClipOval تا پس‌زمینه مربعی عکس دیده نشود.
+            ClipOval(
+              child: Image.asset('assets/images/chef.png',
+                  height: 190,
+                  width: 190,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                      height: 190,
+                      width: 190,
+                      decoration:
+                          const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                      child: const Center(
+                          child: Text('👩‍🍳', style: TextStyle(fontSize: 90))))),
+            ),
           ]),
         ),
         Transform.translate(

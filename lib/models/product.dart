@@ -9,7 +9,9 @@ class Product {
   final int price; // تومان
   final String unit;
   final String asset; // مسیر عکس لوکال
-  final String? imageUrl; // عکس از سوپابیس
+  final String? imageUrl; // عکس اصلی از سوپابیس (لیست و کارت)
+  /// عکس صفحه توضیحات (بنر بزرگ). خالی = همان عکس اصلی نشان داده می‌شود.
+  final String? detailImageUrl;
   /// فعال بودن برای فروش. دموها همیشه true؛ از سرور می‌آید.
   final bool isActive;
 
@@ -23,10 +25,11 @@ class Product {
     required this.unit,
     required this.asset,
     this.imageUrl,
+    this.detailImageUrl,
     this.isActive = true,
   });
 
-  Product copyWith({int? price, bool? isActive, String? imageUrl}) {
+  Product copyWith({int? price, bool? isActive, String? imageUrl, String? detailImageUrl}) {
     return Product(
       id: id,
       title: title,
@@ -37,6 +40,7 @@ class Product {
       unit: unit,
       asset: asset,
       imageUrl: imageUrl ?? this.imageUrl,
+      detailImageUrl: detailImageUrl ?? this.detailImageUrl,
       isActive: isActive ?? this.isActive,
     );
   }
@@ -54,6 +58,7 @@ class Product {
       unit: '${m['unit'] ?? 'عدد'}',
       asset: _assetForCategory(category),
       imageUrl: m['image_url'] as String?,
+      detailImageUrl: m['detail_image_url'] as String?,
       isActive: active == null ? true : active == true || '$active' == 'true' || '$active' == '1',
     );
   }

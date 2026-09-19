@@ -63,10 +63,19 @@ class _AuthScreenState extends State<AuthScreen> {
             Container(
               height: 260,
               decoration: QandTheme.headerGradient(),
-              child: const Center(
+              child: Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Text('👩‍🍳', style: TextStyle(fontSize: 64)),
-                  Text('به قنادی قند خوش اومدی', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                  // آدمک صفحه ورود — ClipOval تا پس‌زمینه مربعی عکس دیده نشود.
+                  ClipOval(
+                    child: Image.asset('assets/images/auth_chef.png',
+                        height: 120,
+                        width: 120,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Text('👩‍🍳',
+                            style: TextStyle(fontSize: 64))),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('به قنادی قند خوش اومدی', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 ]),
               ),
             ),

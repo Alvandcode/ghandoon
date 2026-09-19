@@ -77,9 +77,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
+                // عکس صفحه توضیحات اگر مدیر گذاشته، وگرنه همان عکس اصلی
                 child: ProductImage(
                   asset: product.asset,
-                  imageUrl: product.imageUrl,
+                  imageUrl: product.detailImageUrl ?? product.imageUrl,
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,

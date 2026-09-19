@@ -29,7 +29,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   late final TextEditingController _ingr;
   late String _category;
   late bool _active;
-  String? _pickedPath; // عکس جدید انتخاب‌شده (هنوز آپلود نشده)
+  String? _pickedPath; // عکس اصلی جدید (هنوز آپلود نشده)
+  String? _pickedDetailPath; // عکس صفحه توضیحات جدید (هنوز آپلود نشده)
   bool _busy = false;
   String _busyMsg = '';
 
@@ -60,12 +61,18 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage({bool detail = false}) async {
     try {
       final img = await ImagePicker()
           .pickImage(source: ImageSource.gallery, imageQuality: 80);
       if (img == null || !mounted) return;
-      setState(() => _pickedPath = img.path);
+      setState(() {
+        if (detail) {
+          _pickedDetailPath = img.path;
+        } else {
+          _pickedPath = img.path;
+        }
+      });
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -91,24 +98,39 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       return;
     }
     final price = parsePrice(_price.text)!;
+    final hasNewImage = _pickedPath != null || _pickedDetailPath != null;
     setState(() {
       _busy = true;
-      _busyMsg = _pickedPath == null ? 'در حال ذخیره...' : 'در حال آپلود عکس...';
+      _busyMsg = hasNewImage ? 'در حال آپلود عکس...' : 'در حال ذخیره...';
     });
     try {
       String? imageUrl;
+      String? detailImageUrl;
       if (_pickedPath != null) {
-        setState(() => _busyMsg = 'در حال آپلود عکس...');
+        setState(() => _busyMsg = 'در حال آپلود عکس اصلی...');
         imageUrl =
             await ProductImageService().uploadProductImage(_pickedPath!);
-        if (imageUrl == null && mounted) {
+        if (imageUrl == null) {
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('آپلود عکس ناموفق بود؛ بدون تغییر عکس ذخیره می‌شود؟ دوباره تلاش کن')));
+              content: Text('آپلود عکس ناموفق بود؛ دوباره تلاش کن')));
           return;
         }
-        if (!mounted) return;
-        setState(() => _busyMsg = 'در حال ذخیره...');
       }
+      if (_pickedDetailPath != null) {
+        if (!mounted) return;
+        setState(() => _busyMsg = 'در حال آپلود عکس صفحه توضیحات...');
+        detailImageUrl = await ProductImageService()
+            .uploadProductImage(_pickedDetailPath!);
+        if (detailImageUrl == null) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('آپلود عکس ناموفق بود؛ دوباره تلاش کن')));
+          return;
+        }
+      }
+      if (!mounted) return;
+      setState(() => _busyMsg = 'در حال ذخیره...');
       final repo = ProductRepository();
       final saved = _isEdit
           ? await repo.updateProduct(
@@ -120,6 +142,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
               description: _desc.text,
               ingredients: _ingr.text,
               imageUrl: imageUrl, // null یعنی عکس قبلی بماند
+              detailImageUrl: detailImageUrl,
               isActive: _active,
             )
           : await repo.createProduct(
@@ -130,6 +153,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
               description: _desc.text,
               ingredients: _ingr.text,
               imageUrl: imageUrl ?? '',
+              detailImageUrl: detailImageUrl ?? '',
               isActive: _active,
             );
       if (!mounted) return;
@@ -168,6 +192,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
           _imagePicker(),
+          const SizedBox(height: 12),
+          _detailImagePicker(),
           const SizedBox(height: 12),
           TextFormField(
             controller: _title,
@@ -255,10 +281,39 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   }
 
   Widget _imagePicker() {
+    return _imageSection(
+      title: 'عکس اصلی (لیست و کارت)',
+      pickedPath: _pickedPath,
+      currentUrl: widget.product?.imageUrl,
+      emptyHint: '📷 هنوز عکسی انتخاب نشده',
+      pickLabelNull: 'انتخاب عکس (اختیاری)',
+      onPick: () => _pickImage(),
+    );
+  }
+
+  Widget _detailImagePicker() {
+    return _imageSection(
+      title: 'عکس صفحه توضیحات (اختیاری — خالی = همان عکس اصلی)',
+      pickedPath: _pickedDetailPath,
+      currentUrl: widget.product?.detailImageUrl,
+      emptyHint: '📷 خالی = همان عکس اصلی نشان داده می‌شود',
+      pickLabelNull: 'انتخاب عکس توضیحات (اختیاری)',
+      onPick: () => _pickImage(detail: true),
+    );
+  }
+
+  Widget _imageSection({
+    required String title,
+    required String? pickedPath,
+    required String? currentUrl,
+    required String emptyHint,
+    required String pickLabelNull,
+    required VoidCallback onPick,
+  }) {
     Widget preview;
-    if (_pickedPath != null) {
+    if (pickedPath != null) {
       preview = Image.file(
-        File(_pickedPath!),
+        File(pickedPath),
         height: 180,
         width: double.infinity,
         fit: BoxFit.cover,
@@ -266,10 +321,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
             const SizedBox(height: 180, child: Center(child: Text('🧁', style: TextStyle(fontSize: 64)))),
       );
     } else if (_isEdit) {
+      // در حالت ویرایش همیشه چیزی برای نمایش هست (عکس سرور یا عکس پیش‌فرض دسته)
       final p = widget.product!;
       preview = ProductImage(
         asset: p.asset,
-        imageUrl: p.imageUrl,
+        imageUrl: currentUrl,
         height: 180,
         width: double.infinity,
         fit: BoxFit.cover,
@@ -282,21 +338,23 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         decoration: BoxDecoration(
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(16)),
-        child: const Center(
-            child: Text('📷 هنوز عکسی انتخاب نشده',
-                style: TextStyle(color: Colors.grey))),
+        child: Center(
+            child: Text(emptyHint,
+                style: const TextStyle(color: Colors.grey))),
       );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
         ClipRRect(borderRadius: BorderRadius.circular(16), child: preview),
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: _busy ? null : _pickImage,
+          onPressed: _busy ? null : onPick,
           icon: const Icon(Icons.photo_library_outlined),
-          label: Text(_pickedPath == null && !_isEdit
-              ? 'انتخاب عکس (اختیاری)'
+          label: Text(pickedPath == null && !_isEdit
+              ? pickLabelNull
               : 'تغییر عکس'),
         ),
       ],
