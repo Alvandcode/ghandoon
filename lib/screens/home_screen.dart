@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/cart_service.dart';
 import '../services/product_repository.dart';
 import '../services/push_service.dart';
+import '../utils/responsive.dart';
 import '../widgets/product_image.dart';
 import 'cart_screen.dart';
 import 'custom_cake_screen.dart';
@@ -138,7 +139,12 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(20, 56, 20, 130),
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text('سلام ${widget.username} 👋', style: const TextStyle(color: Colors.white, fontSize: 18)),
+              Expanded(
+                child: Text('سلام ${widget.username} 👋',
+                    style:
+                        const TextStyle(color: Colors.white, fontSize: 18),
+                    overflow: TextOverflow.ellipsis),
+              ),
               Row(children: [
                 // سبد خرید با نشان تعداد
                 Stack(
@@ -185,20 +191,28 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 6),
             const Text('امروز چی برات بپزم؟', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
-            // لوگوی دایره‌ای قندون — ClipOval تا پس‌زمینه مربعی عکس دیده نشود.
-            ClipOval(
-              child: Image.asset('assets/images/chef.png',
-                  height: 190,
-                  width: 190,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                      height: 190,
-                      width: 190,
-                      decoration:
-                          const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const Center(
-                          child: Text('👩‍🍳', style: TextStyle(fontSize: 90))))),
-            ),
+            // لوگوی دایره‌ای قندون — اندازه با عرض صفحه تنظیم می‌شود.
+            Builder(builder: (context) {
+              final s = Responsive.badge(
+                  MediaQuery.sizeOf(context).width,
+                  min: 140,
+                  max: 210,
+                  ratio: 0.5);
+              return ClipOval(
+                child: Image.asset('assets/images/chef.png',
+                    height: s,
+                    width: s,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                        height: s,
+                        width: s,
+                        decoration: const BoxDecoration(
+                            color: Colors.white, shape: BoxShape.circle),
+                        child: const Center(
+                            child: Text('👩‍🍳',
+                                style: TextStyle(fontSize: 90))))),
+              );
+            }),
           ]),
         ),
         Transform.translate(

@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 /// تم وینتیج قندون:
 /// - قرمز ساده برند (#F02010 از دل لوگو) — بدون گرادیان مدرن.
-/// - تیتر Lalezar (نمایش وینتیج؛ با رسیدن فایل بهمن جایگزین می‌شود)،
-///   متن Katibeh (نسخ)، ذخیره Vazirmatn.
+/// - تیتر بهمن، متن کتیبه (نسخ)، ذخیره لاله‌زار/وزیرمتن.
 class QandTheme {
   /// قرمز برند — استخراج‌شده از لوگو.
   static const Color red = Color(0xFFF02010);
@@ -12,7 +11,7 @@ class QandTheme {
   static const Color creamDark = Color(0xFFF0D9B5);
   static const Color ink = Color(0xFF3A2222);
 
-  static const String titleFont = 'Lalezar';
+  static const String titleFont = 'Bahman';
   static const String bodyFont = 'Katibeh';
   static const String fallbackFont = 'Vazirmatn';
 
@@ -28,7 +27,7 @@ class QandTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: cream,
       fontFamily: bodyFont,
-      fontFamilyFallback: const [fallbackFont],
+      fontFamilyFallback: const ['Lalezar', fallbackFont],
       textTheme: const TextTheme(
         displayLarge: TextStyle(fontFamily: titleFont, fontSize: 34),
         displayMedium: TextStyle(fontFamily: titleFont, fontSize: 28),

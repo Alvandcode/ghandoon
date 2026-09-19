@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/checker_strip.dart';
+import '../utils/responsive.dart';
 import 'auth_screen.dart';
 import 'home_screen.dart';
 
@@ -30,6 +31,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final logoSize = Responsive.badge(MediaQuery.sizeOf(context).width,
+        min: 110, max: 160, ratio: 0.36);
     return Scaffold(
       body: Container(
         decoration: QandTheme.headerGradient(radius: 0),
@@ -39,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _logo(),
+                  _logo(logoSize),
                   const SizedBox(height: 16),
                   const Text('قندون',
                       style: TextStyle(
@@ -65,13 +68,22 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  Widget _logo() {
+  Widget _logo(double size) {
     return ClipOval(
-      child: Image.asset('assets/logo/logo.png', width: 130, height: 130, fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
-          width: 130, height: 130, color: Colors.white,
-          child: const Center(child: Text('قند', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900, color: Color(0xFFD62828)))),
-        )),
+      child: Image.asset('assets/logo/logo.png',
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+              width: size,
+              height: size,
+              color: Colors.white,
+              child: const Center(
+                  child: Text('قند',
+                      style: TextStyle(
+                          fontSize: 42,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFD62828)))))),
     );
   }
 }

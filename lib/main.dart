@@ -37,10 +37,19 @@ class QandApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      builder: (context, child) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: child!,
-      ),
+      builder: (context, child) {
+        // سقف اندازه فونت سیستم تا با بزرگ‌نمایی زیاد، چیدمان به‌هم نریزد.
+        final mq = MediaQuery.of(context);
+        final clamped = mq.textScaler.clamp(
+            minScaleFactor: 0.8, maxScaleFactor: 1.3);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: clamped),
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: child!,
+          ),
+        );
+      },
       home: const SplashScreen(),
     );
   }

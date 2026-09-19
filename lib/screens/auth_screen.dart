@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/checker_strip.dart';
+import '../utils/responsive.dart';
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -66,15 +67,22 @@ class _AuthScreenState extends State<AuthScreen> {
               decoration: QandTheme.headerGradient(),
               child: Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  // آدمک صفحه ورود — ClipOval تا پس‌زمینه مربعی عکس دیده نشود.
-                  ClipOval(
-                    child: Image.asset('assets/images/auth_chef.png',
-                        height: 120,
-                        width: 120,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Text('👩‍🍳',
-                            style: TextStyle(fontSize: 64))),
-                  ),
+                  // آدمک صفحه ورود — اندازه با عرض صفحه، دایره‌ای.
+                  Builder(builder: (context) {
+                    final s = Responsive.badge(
+                        MediaQuery.sizeOf(context).width,
+                        min: 100,
+                        max: 140,
+                        ratio: 0.32);
+                    return ClipOval(
+                      child: Image.asset('assets/images/auth_chef.png',
+                          height: s,
+                          width: s,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Text('👩‍🍳',
+                              style: TextStyle(fontSize: 64))),
+                    );
+                  }),
                   const SizedBox(height: 8),
                   const Text('به قندون خوش اومدی', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 ]),

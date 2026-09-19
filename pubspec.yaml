@@ -45,7 +45,10 @@ flutter:
     - family: Vazirmatn
       fonts:
         - asset: assets/fonts/Vazirmatn.ttf
-    # تیتر وینتیج (فعلاً لاله‌زار؛ با رسیدن فایل بهمن جایگزین می‌شود)
+    # تیتر وینتیج: بهمن (ذخیره لاله‌زار)
+    - family: Bahman
+      fonts:
+        - asset: assets/fonts/bahman.ttf
     - family: Lalezar
       fonts:
         - asset: assets/fonts/Lalezar.ttf

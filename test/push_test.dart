@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qand_app/utils/push_topics.dart';
+import 'package:qand_app/utils/responsive.dart';
 
 void main() {
   group('push_topics — تاپیک FCM', () {
@@ -51,6 +52,20 @@ void main() {
       final d = pushDisplayFromData({});
       expect(d.orderId, '');
       expect(d.body.isNotEmpty, isTrue);
+    });
+  });
+
+  group('Responsive.badge', () {
+    test('بین کف و سقف قفل می‌شود', () {
+      expect(Responsive.badge(200, min: 110, max: 190, ratio: 0.42), 110);
+      expect(Responsive.badge(1000, min: 110, max: 190, ratio: 0.42), 190);
+      expect(Responsive.badge(360, min: 110, max: 190, ratio: 0.42),
+          closeTo(151.2, 0.01));
+    });
+
+    test('isNarrow', () {
+      expect(Responsive.isNarrow(320), isTrue);
+      expect(Responsive.isNarrow(360), isFalse);
     });
   });
 }
