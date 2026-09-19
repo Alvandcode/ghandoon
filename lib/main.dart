@@ -27,7 +27,7 @@ class QandApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: appNavigatorKey,
-      title: 'قنادی قند',
+      title: 'قندون',
       debugShowCheckedModeBanner: false,
       theme: QandTheme.light(),
       locale: const Locale('fa', 'IR'),

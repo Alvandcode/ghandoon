@@ -116,7 +116,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen())),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(username: username))),
                 icon: const Icon(Icons.support_agent),
                 label: const Text('ارتباط با مدیر'),
                 style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../models/order.dart';
 import '../models/product.dart';
+import '../models/chat_message.dart';
 import '../services/auth_service.dart';
+import '../services/chat_service.dart';
 import '../services/notification_service.dart';
 import '../services/order_service.dart';
 import '../services/settings_service.dart';
@@ -12,6 +14,7 @@ import '../services/product_repository.dart';
 import '../services/supabase_service.dart';
 import '../data/demo_products.dart';
 import '../utils/format.dart';
+import 'chat_screen.dart';
 import 'product_edit_screen.dart';
 
 class AdminScreen extends StatefulWidget {
@@ -30,6 +33,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   // برای اعلان سفارش جدید: اولین بار فقط خط‌مبنا، بعدش تفاوت‌ها اعلان می‌شوند.
   bool _ordersBaselineDone = false;
   Set<String> _knownOrderIds = {};
+  List<ChatConversation> _convos = [];
   final _card = TextEditingController();
   final _owner = TextEditingController();
   final _zarin = TextEditingController();
@@ -38,7 +42,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 3, vsync: this);
+    _tab = TabController(length: 4, vsync: this);
     _load();
   }
 
@@ -58,6 +62,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final s = await SettingsService().load();
     final prods = await ProductRepository().loadActiveWithSource();
     final usingDefault = admin ? await AuthService().isUsingDefaultAdminPassword() : false;
+    final repoMsgs = admin ? await ChatService().allForAdmin() : <ChatMessage>[];
     // اعلان سفارش‌های جدید (فقط از دومین بار به بعد تا باز شدن اول اسپم نشود)
     final freshIds = {for (final o in orders) o.id};
     final isRefresh = _ordersBaselineDone;
@@ -71,6 +76,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       _usingDefaultPass = usingDefault;
       _knownOrderIds = freshIds;
       _ordersBaselineDone = true;
+      _convos = groupConversations(repoMsgs, ChatService.adminName);
       _card.text = s['card'] ?? '';
       _owner.text = s['owner'] ?? '';
       _zarin.text = s['zarin'] ?? '';
@@ -168,11 +174,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
           child: SafeArea(child: Column(children: [
             Text('پنل مدیر قند 👩‍🍳 — ${widget.username}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
             TabBar(controller: _tab, indicatorColor: Colors.white, labelColor: Colors.white, unselectedLabelColor: Colors.white70,
-              tabs: const [Tab(text: 'سفارش‌ها'), Tab(text: 'محصولات'), Tab(text: 'تنظیمات')]),
+              tabs: const [Tab(text: 'سفارش‌ها'), Tab(text: 'پیام‌ها'), Tab(text: 'محصولات'), Tab(text: 'تنظیمات')]),
           ])),
         ),
       ),
-      body: TabBarView(controller: _tab, children: [_ordersTab(), _productsTab(), _settingsTab()]),
+      body: TabBarView(controller: _tab, children: [_ordersTab(), _messagesTab(), _productsTab(), _settingsTab()]),
     );
   }
 
@@ -328,6 +334,54 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             ),
           ),
         ]),
+      ),
+    );
+  }
+
+  Widget _messagesTab() {
+    if (!SupabaseService.isReady) {
+      return const Center(
+          child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Text(
+            'پیام‌ها فقط وقتی سوپابیس وصل است کار می‌کند.\nالان در حالت آفلاین هستی.',
+            textAlign: TextAlign.center),
+      ));
+    }
+    if (_convos.isEmpty) {
+      return const Center(child: Text('هنوز پیامی از مشتری نیست 💬'));
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _convos.length,
+        itemBuilder: (_, i) {
+          final c = _convos[i];
+          final last = c.last;
+          final preview = last.hasImage && last.text == '📷 عکس'
+              ? '📷 عکس فرستاده'
+              : last.text;
+          return Card(
+            child: ListTile(
+              leading: const CircleAvatar(child: Text('🧑')),
+              title: Text(c.peer,
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(
+                  '${last.sender == ChatService.adminName ? 'تو: ' : ''}$preview',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              trailing: Text('${c.messages.length} پیام',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => ChatScreen(
+                        username: widget.username, peer: c.peer)),
+              ).then((_) => _load()),
+            ),
+          );
+        },
       ),
     );
   }

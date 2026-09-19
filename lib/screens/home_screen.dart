@@ -95,7 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _tab == 0 ? _homeBody() : _tab == 1
           ? TrackOrderScreen(username: widget.username)
           : _tab == 2
-              ? const ChatScreen(showBackButton: false)
+              ? ChatScreen(
+                  username: widget.username, showBackButton: false)
               : AdminScreen(username: widget.username),
       bottomNavigationBar: Container(
         margin: const EdgeInsets.all(16),
@@ -184,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 6),
             const Text('امروز چی برات بپزم؟', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
-            // لوگوی دایره‌ای قنادی — ClipOval تا پس‌زمینه مربعی عکس دیده نشود.
+            // لوگوی دایره‌ای قندون — ClipOval تا پس‌زمینه مربعی عکس دیده نشود.
             ClipOval(
               child: Image.asset('assets/images/chef.png',
                   height: 190,
@@ -300,6 +301,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('خروج از حساب؟'),
+        content: const Text('مطمئنی می‌خوای خارج شی؟'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('نه، بمونم')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('بله، خارج شو')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
     await AuthService().logout();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AuthScreen()), (_) => false);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../services/auth_service.dart';
+import '../widgets/checker_strip.dart';
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -75,10 +76,11 @@ class _AuthScreenState extends State<AuthScreen> {
                             style: TextStyle(fontSize: 64))),
                   ),
                   const SizedBox(height: 8),
-                  const Text('به قنادی قند خوش اومدی', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                  const Text('به قندون خوش اومدی', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 ]),
               ),
             ),
+            const CheckerStrip(height: 16),
             Padding(
               padding: const EdgeInsets.all(20),
               child: Card(

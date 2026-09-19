@@ -4,7 +4,7 @@
 class AppConfig {
   // اگر سوپابیس وصل نباشد از این‌ها استفاده می‌شود
   static const String defaultCardNumber = '6037-9911-1234-5678';
-  static const String defaultCardOwner = 'قنادی قند';
+  static const String defaultCardOwner = 'فروشگاه قندون';
   // لینک زرین‌پال را بعدا اینجا یا از پنل مدیر عوض کن. خالی = دکمه مخفی
   static const String defaultZarinpalLink = '';
 

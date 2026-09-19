@@ -1,24 +1,42 @@
 import 'package:flutter/material.dart';
 
+/// تم وینتیج قندون:
+/// - قرمز ساده برند (#F02010 از دل لوگو) — بدون گرادیان مدرن.
+/// - تیتر Lalezar (نمایش وینتیج؛ با رسیدن فایل بهمن جایگزین می‌شود)،
+///   متن Katibeh (نسخ)، ذخیره Vazirmatn.
 class QandTheme {
-  static const Color red = Color(0xFFD62828);
-  static const Color redDark = Color(0xFFA81E1E);
-  static const Color cream = Color(0xFFFFF3E4);
-  static const Color creamDark = Color(0xFFF5D9B8);
-  static const Color ink = Color(0xFF3A2A2A);
+  /// قرمز برند — استخراج‌شده از لوگو.
+  static const Color red = Color(0xFFF02010);
+  static const Color redDark = Color(0xFFB3120A);
+  static const Color cream = Color(0xFFFBF0DC);
+  static const Color creamDark = Color(0xFFF0D9B5);
+  static const Color ink = Color(0xFF3A2222);
+
+  static const String titleFont = 'Lalezar';
+  static const String bodyFont = 'Katibeh';
+  static const String fallbackFont = 'Vazirmatn';
 
   static ThemeData light() {
     final scheme = ColorScheme.fromSeed(
       seedColor: red,
       primary: red,
-      secondary: const Color(0xFFFF8A5C),
+      secondary: const Color(0xFFB3120A),
       surface: Colors.white,
     );
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: const Color(0xFFFFFBF5),
-      fontFamily: 'Vazirmatn',
+      scaffoldBackgroundColor: cream,
+      fontFamily: bodyFont,
+      fontFamilyFallback: const [fallbackFont],
+      textTheme: const TextTheme(
+        displayLarge: TextStyle(fontFamily: titleFont, fontSize: 34),
+        displayMedium: TextStyle(fontFamily: titleFont, fontSize: 28),
+        displaySmall: TextStyle(fontFamily: titleFont, fontSize: 24),
+        headlineMedium: TextStyle(fontFamily: titleFont, fontSize: 22),
+        headlineSmall: TextStyle(fontFamily: titleFont, fontSize: 20),
+        titleLarge: TextStyle(fontFamily: titleFont, fontSize: 18),
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -31,40 +49,51 @@ class QandTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(54),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: redDark, width: 2),
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          textStyle: const TextStyle(
+              fontSize: 18, fontFamily: titleFont),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
-      cardTheme: CardThemeData(
-        elevation: 6,
+      cardTheme: const CardThemeData(
+        elevation: 4,
         shadowColor: Colors.black12,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(20)),
+          side: BorderSide(color: creamDark),
+        ),
+      ),
+      chipTheme: const ChipThemeData(
+        selectedColor: red,
+        secondarySelectedColor: red,
+        labelStyle: TextStyle(color: Colors.white),
+        secondaryLabelStyle: TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12))),
       ),
     );
   }
 
+  /// هدر قرمز ساده برند (وینتیج = فلت، بدون گرادیان).
+  /// اسم متد عوض نشده تا همه صفحه‌ها دست‌نخورده بمانند.
   static BoxDecoration headerGradient({double radius = 36}) {
     return BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        // بالا نارنجی → پایین قرمز
-        colors: [Color(0xFFFF8A5C), Color(0xFFE63946), Color(0xFFD62828)],
-      ),
+      color: red,
       borderRadius: BorderRadius.vertical(bottom: Radius.circular(radius)),
     );
   }

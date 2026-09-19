@@ -75,7 +75,7 @@ PushDisplay pushDisplayFromData(
   final orderId = data['orderId'] ?? data['order_id'] ?? '';
   final title = (notificationTitle ?? '').trim().isNotEmpty
       ? notificationTitle!.trim()
-      : 'قنادی قند 🧁';
+      : 'قندون 🧁';
   final body = (notificationBody ?? '').trim().isNotEmpty
       ? notificationBody!.trim()
       : 'سفارش $orderId به‌روز شد';

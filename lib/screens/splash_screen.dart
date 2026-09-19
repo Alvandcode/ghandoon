@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../services/auth_service.dart';
+import '../widgets/checker_strip.dart';
 import 'auth_screen.dart';
 import 'home_screen.dart';
 
@@ -32,18 +33,33 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       body: Container(
         decoration: QandTheme.headerGradient(radius: 0),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _logo(),
-              const SizedBox(height: 16),
-              const Text('قنادی قند', style: TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w900)),
-              const Text('شیرینی خونگی با عشق', style: TextStyle(color: Colors.white70, fontSize: 15)),
-              const SizedBox(height: 24),
-              const CircularProgressIndicator(color: Colors.white),
-            ],
-          ),
+        child: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _logo(),
+                  const SizedBox(height: 16),
+                  const Text('قندون',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 44,
+                          fontFamily: QandTheme.titleFont)),
+                  const Text('فروشگاه کیک و شیرینی قند',
+                      style: TextStyle(color: Colors.white70, fontSize: 15)),
+                  const SizedBox(height: 24),
+                  const CircularProgressIndicator(color: Colors.white),
+                ],
+              ),
+            ),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: CheckerStrip(height: 22),
+            ),
+          ],
         ),
       ),
     );

@@ -177,7 +177,11 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
             ),
             const SizedBox(width: 8),
             IconButton.filledTonal(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen())),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          ChatScreen(username: widget.username))),
               icon: const Icon(Icons.support_agent),
               tooltip: 'ارتباط با مدیر',
             ),
