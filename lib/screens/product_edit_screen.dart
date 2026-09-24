@@ -1,14 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../theme/qand_theme.dart';
 import '../models/product.dart';
 import '../services/product_image_service.dart';
 import '../services/product_repository.dart';
+import '../services/settings_service.dart';
 import '../services/supabase_service.dart';
 import '../utils/format.dart';
 import '../utils/product_validate.dart';
+import '../widgets/gradient_app_bar.dart';
 import '../widgets/product_image.dart';
+import '../widgets/safe_scaffold.dart';
 
 /// ویرایشگر محصول مدیر: هم «افزودن» (product == null) هم «ویرایش کامل».
 /// عکس از گالری انتخاب و در Storage آپلود می‌شود؛ true برمی‌گرداند اگر
@@ -29,6 +31,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   late final TextEditingController _ingr;
   late String _category;
   late bool _active;
+  /// چهار شاخه اصلی از تنظیمات (پیش‌فرض = AppConfig).
+  List<String> _mainCategories = List.of(productCategories);
   String? _pickedPath; // عکس اصلی جدید (هنوز آپلود نشده)
   String? _pickedDetailPath; // عکس صفحه توضیحات جدید (هنوز آپلود نشده)
   bool _busy = false;
@@ -49,6 +53,24 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         ? p.category
         : productCategories.first;
     _active = p?.isActive ?? true;
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    final cats = await SettingsService().loadMainCategories();
+    if (!mounted) return;
+    setState(() {
+      _mainCategories = cats;
+      final p = widget.product;
+      if (p != null) {
+        final normalized =
+            normalizeProductCategory(p.category, cats);
+        _category =
+            cats.contains(normalized) ? normalized : (cats.isNotEmpty ? cats.first : _category);
+      } else if (!cats.contains(_category) && cats.isNotEmpty) {
+        _category = cats.first;
+      }
+    });
   }
 
   @override
@@ -92,6 +114,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
       title: _title.text,
       priceText: _price.text,
       category: _category,
+      allowedCategories: _mainCategories,
     );
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
@@ -144,6 +167,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
               imageUrl: imageUrl, // null یعنی عکس قبلی بماند
               detailImageUrl: detailImageUrl,
               isActive: _active,
+              allowedCategories: _mainCategories,
             )
           : await repo.createProduct(
               title: _title.text,
@@ -155,6 +179,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
               imageUrl: imageUrl ?? '',
               detailImageUrl: detailImageUrl ?? '',
               isActive: _active,
+              allowedCategories: _mainCategories,
             );
       if (!mounted) return;
       if (saved == null) {
@@ -171,26 +196,14 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(90),
-        child: Container(
-          decoration: QandTheme.headerGradient(radius: 24),
-          child: SafeArea(
-              child: Row(children: [
-            IconButton(
-                onPressed: _busy ? null : () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_forward, color: Colors.white)),
-            Text(_isEdit ? 'ویرایش محصول ✏️' : 'محصول جدید ➕',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17)),
-          ])),
-        ),
+      appBar: GradientAppBar.of(
+        context,
+        title: _isEdit ? 'ویرایش محصول ✏️' : 'محصول جدید ➕',
+        onBack: _busy ? null : () => Navigator.pop(context),
       ),
       body: Form(
         key: _form,
-        child: ListView(padding: const EdgeInsets.all(16), children: [
+        child: ListView(padding: bottomSafePadding(context), children: [
           _imagePicker(),
           const SizedBox(height: 12),
           _detailImagePicker(),
@@ -210,7 +223,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
             decoration: const InputDecoration(
                 labelText: 'دسته *', prefixIcon: Icon(Icons.category_outlined)),
             items: [
-              for (final c in productCategories)
+              for (final c in _mainCategories)
                 DropdownMenuItem(value: c, child: Text(c)),
             ],
             onChanged: (v) => setState(() => _category = v ?? _category),

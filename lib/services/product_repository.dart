@@ -70,6 +70,24 @@ class ProductRepository {
     }
   }
 
+  /// تغییر نام دسته روی همه محصولات آن دسته (سرور + آینه لوکال دمو).
+  /// وقتی مدیر عنوان شاخه اصلی را عوض می‌کند، محصولات نباید یتیم شوند.
+  Future<void> renameCategoryEverywhere(String oldName, String newName) async {
+    final o = oldName.trim();
+    final n = newName.trim();
+    if (o.isEmpty || n.isEmpty || o == n) return;
+    final client = SupabaseService.clientOrNull();
+    if (client != null) {
+      try {
+        await client
+            .from('products')
+            .update({'category': n}).eq('category', o);
+      } catch (_) {
+        // خطای شبکه/RLS — ادامه با بقیه
+      }
+    }
+  }
+
   /// ویرایش قیمت (تومان). نامعتبر (<=0) بدون تماس با سرور false می‌دهد.
   Future<bool> updatePrice(String id, int price) async {
     if (price <= 0) return false;
@@ -85,6 +103,7 @@ class ProductRepository {
 
   /// ساخت محصول جدید (فقط آنلاین؛ آفلاین null).
   /// نامعتبر بودن ورودی قبل از تماس با سرور چک می‌شود.
+  /// [allowedCategories] چهار شاخه اصلی تنظیمات مدیر (خالی = پیش‌فرض).
   Future<Product?> createProduct({
     required String title,
     required String category,
@@ -95,9 +114,13 @@ class ProductRepository {
     String? imageUrl,
     String? detailImageUrl,
     bool isActive = true,
+    List<String> allowedCategories = productCategories,
   }) async {
     if (validateProductFields(
-            title: title, priceText: '$price', category: category) !=
+            title: title,
+            priceText: '$price',
+            category: category,
+            allowedCategories: allowedCategories) !=
         null) {
       return null;
     }
@@ -138,9 +161,13 @@ class ProductRepository {
     String? imageUrl,
     String? detailImageUrl,
     bool? isActive,
+    List<String> allowedCategories = productCategories,
   }) async {
     if (validateProductFields(
-            title: title, priceText: '$price', category: category) !=
+            title: title,
+            priceText: '$price',
+            category: category,
+            allowedCategories: allowedCategories) !=
         null) {
       return null;
     }

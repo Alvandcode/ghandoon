@@ -14,6 +14,8 @@ import '../services/product_repository.dart';
 import '../services/supabase_service.dart';
 import '../data/demo_products.dart';
 import '../utils/format.dart';
+import '../widgets/gradient_app_bar.dart';
+import '../widgets/safe_scaffold.dart';
 import 'chat_screen.dart';
 import 'product_edit_screen.dart';
 
@@ -38,6 +40,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   final _owner = TextEditingController();
   final _zarin = TextEditingController();
   final _price = TextEditingController();
+  /// چهار فیلد شاخه اصلی سفارش (قابل ویرایش مدیر).
+  final List<TextEditingController> _catCtl =
+      List.generate(4, (_) => TextEditingController());
 
   @override
   void initState() {
@@ -53,6 +58,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     _owner.dispose();
     _zarin.dispose();
     _price.dispose();
+    for (final c in _catCtl) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -60,6 +68,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final admin = await AuthService().isAdmin();
     final orders = await OrderService().all(isAdmin: admin);
     final s = await SettingsService().load();
+    final cats = await SettingsService().loadMainCategories();
     final prods = await ProductRepository().loadActiveWithSource();
     final usingDefault = admin ? await AuthService().isUsingDefaultAdminPassword() : false;
     final repoMsgs = admin ? await ChatService().allForAdmin() : <ChatMessage>[];
@@ -80,6 +89,9 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       _card.text = s['card'] ?? '';
       _owner.text = s['owner'] ?? '';
       _zarin.text = s['zarin'] ?? '';
+      for (var i = 0; i < _catCtl.length && i < cats.length; i++) {
+        _catCtl[i].text = cats[i];
+      }
       // لیست واقعی (حتی خالی) — تا مدیر بفهمد فروشگاه واقعا خالی است نه دمو
       _products = prods.products;
     });
@@ -167,15 +179,22 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       return const Scaffold(body: Center(child: Text('فقط مدیر دسترسی دارد 🔒')));
     }
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(140),
-        child: Container(
-          decoration: QandTheme.headerGradient(radius: 24),
-          child: SafeArea(child: Column(children: [
-            Text('پنل مدیر قند 👩‍🍳 — ${widget.username}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-            TabBar(controller: _tab, indicatorColor: Colors.white, labelColor: Colors.white, unselectedLabelColor: Colors.white70,
-              tabs: const [Tab(text: 'سفارش‌ها'), Tab(text: 'پیام‌ها'), Tab(text: 'محصولات'), Tab(text: 'تنظیمات')]),
-          ])),
+      appBar: GradientAppBar.of(
+        context,
+        title: 'پنل مدیر قند 👩‍🍳 — ${widget.username}',
+        showBack: false,
+        bottom: TabBar(
+          controller: _tab,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'سفارش‌ها'),
+            Tab(text: 'پیام‌ها'),
+            Tab(text: 'محصولات'),
+            Tab(text: 'تنظیمات'),
+          ],
         ),
       ),
       body: TabBarView(controller: _tab, children: [_ordersTab(), _messagesTab(), _productsTab(), _settingsTab()]),
@@ -183,9 +202,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   Widget _ordersTab() {
-    if (_orders.isEmpty) return const Center(child: Text('سفارشی نیست'));
+    if (_orders.isEmpty) {
+      return const Center(child: Text('سفارشی نیست'));
+    }
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: bottomSafePadding(context, base: 12),
       itemCount: _orders.length,
       itemBuilder: (_, i) {
         final o = _orders[i];
@@ -354,7 +375,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
-        padding: const EdgeInsets.all(12),
+        padding: bottomSafePadding(context, base: 12),
         itemCount: _convos.length,
         itemBuilder: (_, i) {
           final c = _convos[i];
@@ -391,7 +412,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: bottomSafePadding(context, base: 12),
         children: [
           Text(
             online
@@ -563,7 +584,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   Widget _settingsTab() {
-    return ListView(padding: const EdgeInsets.all(16), children: [
+    return ListView(padding: bottomSafePadding(context), children: [
       if (_usingDefaultPass)
         Container(
           margin: const EdgeInsets.only(bottom: 12),
@@ -584,6 +605,31 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         label: const Text('تغییر رمز مدیر'),
       ),
       const SizedBox(height: 14),
+      const Text('چهار شاخه اصلی سفارش (صفحه خانه) — ذخیره برای همه اعمال می‌شود',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+      const SizedBox(height: 4),
+      const Text('با تغییر نام، محصولات موجود آن دسته هم به‌روز می‌شوند.',
+          style: TextStyle(fontSize: 12, color: Colors.grey)),
+      const SizedBox(height: 10),
+      for (var i = 0; i < _catCtl.length; i++)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: TextField(
+            controller: _catCtl[i],
+            maxLength: 30,
+            decoration: InputDecoration(
+              labelText: 'شاخه ${i + 1}',
+              prefixIcon: Icon([
+                Icons.icecream_outlined,
+                Icons.bakery_dining_outlined,
+                Icons.cake_outlined,
+                Icons.cookie_outlined,
+              ][i]),
+              counterText: '',
+            ),
+          ),
+        ),
+      const SizedBox(height: 6),
       const Text('شماره کارت و زرین‌پال — ذخیره برای همه کاربران اعمال می‌شود ✅', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       const SizedBox(height: 10),
       TextField(
@@ -624,12 +670,32 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         // ذخیره واقعی: اول سرور (همه کاربران می‌بینند)، بعد آینه لوکال.
         final ok = await SettingsService().save(
             card: _card.text.trim(), owner: owner, zarin: zarin);
+        // دسته‌های اصلی: نام جدید هر شاخه + cascade روی محصولات همان شاخه.
+        final oldCats = await SettingsService().loadMainCategories();
+        final newCats = <String>[];
+        for (final c in _catCtl) {
+          newCats.add(c.text.trim());
+        }
+        final sanitized = SettingsService.sanitizeMainCategories(newCats);
+        final catsOk = await SettingsService().saveMainCategories(sanitized);
+        // تغییر نام‌ها → به‌روزرسانی category محصولات مرتبط
+        if (SupabaseService.isReady) {
+          for (var i = 0; i < oldCats.length && i < sanitized.length; i++) {
+            final oldName = oldCats[i];
+            final newName = sanitized[i];
+            if (oldName.isNotEmpty && newName.isNotEmpty && oldName != newName) {
+              await ProductRepository()
+                  .renameCategoryEverywhere(oldName, newName);
+            }
+          }
+        }
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(ok
+          content: Text(ok || catsOk
               ? 'برای همه کاربران ذخیره شد ✅'
               : 'فقط روی همین گوشی ذخیره شد (سرور در دسترس نیست یا دسترسی‌اش باز نشده — دستور دسترسی‌ها را در سوپابیس اجرا کن)'),
         ));
+        await _load();
       }, child: const Text('ذخیره تنظیمات')),
     ]);
   }

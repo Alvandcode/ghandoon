@@ -9,6 +9,8 @@ import '../config/app_config.dart';
 import '../models/chat_message.dart';
 import '../services/chat_service.dart';
 import '../services/supabase_service.dart';
+import '../widgets/gradient_app_bar.dart';
+import '../widgets/safe_scaffold.dart';
 
 /// چت مدیر↔مشتری (واقعی روی سوپابیس + fallback دموی آفلاین).
 /// - مشتری: peer='admin' (پیش‌فرض).
@@ -159,54 +161,42 @@ class _ChatScreenState extends State<ChatScreen> {
     final peerTitle =
         _isAdmin ? 'گفتگو با ${widget.peer}' : 'مدیر قندون';
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(90),
-        child: Container(
-            decoration: QandTheme.headerGradient(radius: 24),
-          child: SafeArea(
-              child: Row(children: [
-            if (widget.showBackButton)
-              IconButton(
-                  onPressed: () => Navigator.maybePop(context),
-                  icon:
-                      const Icon(Icons.arrow_forward, color: Colors.white))
-            else
-              const SizedBox(width: 12),
-            const CircleAvatar(
-                radius: 26,
-                backgroundColor: Colors.white,
-                child: Text('👩‍🍳', style: TextStyle(fontSize: 30))),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(peerTitle,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            fontFamily: QandTheme.titleFont)),
-                    Text(
-                        _isDemo
-                            ? 'حالت دمو — پیام‌ها هنوز به مدیر نمی‌رسند'
-                            : 'آنلاین',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 13)),
-                  ]),
-            ),
-            if (!_isAdmin) ...[
-              IconButton(
-                  onPressed: _call,
-                  icon: const Icon(Icons.call, color: Colors.white)),
-              IconButton(
-                  onPressed: _whatsapp,
-                  icon: const Icon(Icons.chat, color: Colors.white)),
-            ] else
-              const SizedBox(width: 12),
-          ]))),
+      appBar: GradientAppBar.of(
+        context,
+        title: peerTitle,
+        showBack: widget.showBackButton,
+        titleWidget: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(peerTitle,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    fontFamily: QandTheme.titleFont)),
+            Text(
+                _isDemo
+                    ? 'حالت دمو — پیام‌ها هنوز به مدیر نمی‌رسند'
+                    : 'آنلاین',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 13)),
+          ],
+        ),
+        actions: [
+          if (!_isAdmin) ...[
+            IconButton(
+                onPressed: _call,
+                icon: const Icon(Icons.call, color: Colors.white)),
+            IconButton(
+                onPressed: _whatsapp,
+                icon: const Icon(Icons.chat, color: Colors.white)),
+          ],
+        ],
       ),
       body: Column(children: [
         Expanded(
@@ -222,8 +212,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemBuilder: (_, i) => _bubble(_msgs[i]),
                   )),
         SafeArea(
+            top: false,
             child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.only(
+                  left: 12,
+                  right: 12,
+                  top: 12,
+                  bottom: bottomSafeOnly(context, extra: 12),
+                ),
                 child: Row(children: [
                   IconButton(
                     tooltip: 'ارسال عکس کیک پیشنهادی',

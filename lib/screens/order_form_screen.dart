@@ -7,6 +7,8 @@ import '../models/order.dart';
 import '../services/order_service.dart';
 import '../utils/format.dart';
 import '../utils/order_rules.dart';
+import '../widgets/gradient_app_bar.dart';
+import '../widgets/safe_scaffold.dart';
 import 'track_order_screen.dart';
 
 class OrderFormScreen extends StatefulWidget {
@@ -121,17 +123,10 @@ class _OrderFormScreenState extends State<OrderFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(90),
-        child: Container(decoration: QandTheme.headerGradient(radius: 24),
-          child: SafeArea(child: Row(children: [
-            IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_forward, color: Colors.white)),
-            Text('سفارش ${widget.product.title}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
-          ]))),
-      ),
+      appBar: GradientAppBar.of(context, title: 'سفارش ${widget.product.title}'),
       body: Form(
         key: _form,
-        child: ListView(padding: const EdgeInsets.all(16), children: [
+        child: ListView(padding: bottomSafePadding(context), children: [
           _counter('تعداد سفارش', _qty, (v) => setState(() => _qty = v)),
           _counter('تعداد نفرات', _persons, (v) => setState(() => _persons = v), min: 1, max: 200),
           _field(_name, 'نام و نام خانوادگی', Icons.person, need: true, minLen: 3, maxLen: 80),

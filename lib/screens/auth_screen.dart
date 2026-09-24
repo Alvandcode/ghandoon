@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../services/auth_service.dart';
 import '../widgets/checker_strip.dart';
+import '../widgets/safe_scaffold.dart';
 import '../utils/responsive.dart';
 import 'home_screen.dart';
 
@@ -58,12 +59,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topPad = topSafeOnly(context, extra: 12);
     return Scaffold(
       body: SingleChildScrollView(
+        padding: EdgeInsets.only(bottom: bottomSafeOnly(context, extra: 24)),
         child: Column(
           children: [
             Container(
-              height: 260,
+              padding: EdgeInsets.only(top: topPad),
+              constraints: BoxConstraints(minHeight: 220, maxHeight: 220 + topPad),
               decoration: QandTheme.headerGradient(),
               child: Center(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [

@@ -8,6 +8,8 @@ import '../services/cart_service.dart';
 import '../services/order_service.dart';
 import '../utils/format.dart';
 import '../utils/order_rules.dart';
+import '../widgets/gradient_app_bar.dart';
+import '../widgets/safe_scaffold.dart';
 import 'track_order_screen.dart';
 
 /// سبد خرید چندمحصولی + تسویه (حضوری/ارسال با هزینه پیک).
@@ -155,31 +157,23 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(90),
-        child: Container(
-          decoration: QandTheme.headerGradient(radius: 24),
-          child: SafeArea(
-              child: Row(children: [
-            IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_forward, color: Colors.white)),
-            const Text('سبد خرید 🛒',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17)),
-          ])),
-        ),
-      ),
+      appBar: GradientAppBar.of(context, title: 'سبد خرید 🛒'),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
-              ? const Center(
-                  child: Text('سبدت خالیه 🧺\nاز صفحه اصلی محصول انتخاب کن.'))
+              ? Center(
+                  child: Padding(
+                    padding: bottomSafePadding(context, base: 24),
+                    child: const Text(
+                        'سبدت خالیه 🧺\nاز صفحه اصلی محصول انتخاب کن.',
+                        textAlign: TextAlign.center),
+                  ),
+                )
               : Form(
                   key: _form,
-                  child: ListView(padding: const EdgeInsets.all(16), children: [
+                  child: ListView(
+                      padding: bottomSafePadding(context),
+                      children: [
                     for (final item in _items) _itemCard(item),
                     const SizedBox(height: 8),
                     _fulfillmentCard(),

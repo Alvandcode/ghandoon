@@ -66,6 +66,16 @@ class Product {
   /// عکس پیش‌فرض هر دسته (همه این فایل‌ها واقعا در assets/images وجود دارند).
   static String _assetForCategory(String category) {
     switch (category) {
+      // دسته‌های اصلی جدید (قابل ویرایش مدیر)
+      case 'کیک':
+        return 'assets/images/cake_slice.png';
+      case 'شیرینی':
+        return 'assets/images/cookies.png';
+      case 'دسر':
+        return 'assets/images/cupcake.png';
+      case 'شکلات':
+        return 'assets/images/cookies.png';
+      // دسته‌های قدیمی سرور (قبل از نرمال‌سازی)
       case 'کیک خونگی':
         return 'assets/images/cupcake.png';
       case 'کوکی':

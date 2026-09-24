@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
+import '../config/app_config.dart';
 import '../theme/qand_theme.dart';
-import '../data/demo_products.dart';
-import '../models/product.dart';
 import '../services/auth_service.dart';
 import '../services/cart_service.dart';
 import '../services/product_repository.dart';
 import '../services/push_service.dart';
+import '../services/settings_service.dart';
 import '../utils/responsive.dart';
-import '../widgets/product_image.dart';
+import '../widgets/safe_scaffold.dart';
 import 'cart_screen.dart';
+import 'category_products_screen.dart';
 import 'custom_cake_screen.dart';
-import 'product_detail_screen.dart';
 import 'track_order_screen.dart';
 import 'chat_screen.dart';
 import 'admin_screen.dart';
@@ -24,11 +24,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selected = 0;
   int _tab = 0;
   bool _isAdmin = false;
-  // لیست محصولات: پیش‌فرض دمو تا سوپابیس جواب بده؛ هیچ‌وقت خالی نمی‌ماند
-  List<Product> _products = demoProducts;
+  // چهار شاخه اصلی سفارش — از تنظیمات مدیر (قابل ویرایش)
+  List<String> _mainCategories = List.of(AppConfig.defaultMainCategories);
   // «سوپابیس وصل است ولی فروشگاه خالی» — جدا از حالت آفلاین
   bool _supabaseEmpty = false;
   int _cartCount = 0;
@@ -49,25 +48,21 @@ class _HomeScreenState extends State<HomeScreen> {
       _drainPushTap();
     });
     _refreshCartCount();
-    // محصولات سرور — بدون بلاک کردن UI
+    _loadMainCategories();
+    // محصولات سرور — بدون بلاک کردن UI (برای تشخیص فروشگاه خالی)
     ProductRepository().loadActiveWithSource().then((r) {
       if (!mounted) return;
       setState(() {
-        // فروشگاه واقعی (حتی خالی) را نشان بده؛ دمو فقط وقتی که آفلاین/خطا هستیم
-        _products = r.products;
         _supabaseEmpty = r.source == ProductSource.supabaseEmpty;
-        if (_products.isNotEmpty) {
-          _selected = _selected.clamp(0, _products.length - 1);
-        }
       });
     });
   }
 
-  // وقتی لیست خالی است (فروشگاه سوپابیسی خالی) current استفاده نمی‌شود؛
-  // ولی برای اطمینان از نبود ArgumentError در clamp، fallback دمو می‌دهیم.
-  Product get current => _products.isEmpty
-      ? demoProducts.first
-      : _products[_selected.clamp(0, _products.length - 1)];
+  Future<void> _loadMainCategories() async {
+    final cats = await SettingsService().loadMainCategories();
+    if (!mounted) return;
+    setState(() => _mainCategories = cats);
+  }
 
   Future<void> _refreshCartCount() async {
     final n = await CartService().count(widget.username);
@@ -99,20 +94,27 @@ class _HomeScreenState extends State<HomeScreen> {
               ? ChatScreen(
                   username: widget.username, showBackButton: false)
               : AdminScreen(username: widget.username),
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 16)]),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _nav(Icons.home, 0),
-            _nav(Icons.receipt_long, 1),
-            // چت پایین صفحه فقط برای مشتری است؛ مدیر «تب پیام‌ها» را در پنل دارد.
-            // (قبلاً برای مدیر گفتگوی خالی با خودش باز می‌شد)
-            if (!_isAdmin) _nav(Icons.chat_bubble_outline, 2),
-            if (_isAdmin) _nav(Icons.admin_panel_settings_outlined, 3),
-            IconButton(onPressed: _logout, icon: const Icon(Icons.logout, color: Colors.grey)),
-          ],
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 16)]),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _nav(Icons.home, 0),
+              _nav(Icons.receipt_long, 1),
+              // چت پایین صفحه فقط برای مشتری است؛ مدیر «تب پیام‌ها» را در پنل دارد.
+              // (قبلاً برای مدیر گفتگوی خالی با خودش باز می‌شد)
+              if (!_isAdmin) _nav(Icons.chat_bubble_outline, 2),
+              if (_isAdmin) _nav(Icons.admin_panel_settings_outlined, 3),
+              IconButton(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout, color: Colors.grey)),
+            ],
+          ),
         ),
       ),
     );
@@ -134,11 +136,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _homeBody() {
+    final width = MediaQuery.sizeOf(context).width;
+    final topPad = topSafeOnly(context, extra: 40);
     return SingleChildScrollView(
+      padding: EdgeInsets.only(bottom: bottomSafeOnly(context, extra: 90)),
       child: Column(children: [
         Container(
           decoration: QandTheme.headerGradient(),
-          padding: const EdgeInsets.fromLTRB(20, 56, 20, 130),
+          padding: EdgeInsets.fromLTRB(20, topPad, 20, 100),
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Expanded(
@@ -191,128 +196,161 @@ class _HomeScreenState extends State<HomeScreen> {
               ]),
             ]),
             const SizedBox(height: 6),
-            const Text('امروز چی برات بپزم؟', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
+            const Text('امروز چی برات بپزم؟',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
             // لوگوی دایره‌ای قندون — اندازه با عرض صفحه تنظیم می‌شود.
             Builder(builder: (context) {
-              final s = Responsive.badge(
-                  MediaQuery.sizeOf(context).width,
-                  min: 140,
-                  max: 210,
-                  ratio: 0.5);
+              final s = Responsive.badge(width, min: 120, max: 190, ratio: 0.46);
               return ClipOval(
-                child: Image.asset('assets/images/chef.png',
+                child: Image.asset(
+                  'assets/images/chef.png',
+                  height: s,
+                  width: s,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
                     height: s,
                     width: s,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                        height: s,
-                        width: s,
-                        decoration: const BoxDecoration(
-                            color: Colors.white, shape: BoxShape.circle),
-                        child: const Center(
-                            child: Text('👩‍🍳',
-                                style: TextStyle(fontSize: 90))))),
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
+                    child: Center(
+                      child: Text('👩‍🍳',
+                          style: TextStyle(fontSize: s * 0.45)),
+                    ),
+                  ),
+                ),
               );
             }),
           ]),
         ),
         Transform.translate(
-          offset: const Offset(0, -90),
+          offset: const Offset(0, -70),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: Responsive.hPad(width)),
             child: Card(
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding: EdgeInsets.all(Responsive.hPad(width, normal: 18, narrow: 14)),
                 child: Column(children: [
-                  const Text('یکی رو انتخاب کن', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Text('کدوم شاخه رو می‌خوای؟',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  const Text('یک دسته اصلی رو انتخاب کن تا محصولاتش رو ببینی',
+                      style: TextStyle(fontSize: 12, color: Colors.black54)),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 118,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      reverse: true,
-                      itemCount: _products.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (_, i) {
-                        final p = _products[i];
-                        final on = i == _selected;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selected = i),
-                          child: Column(children: [
-                            Container(
-                              width: on ? 76 : 66, height: on ? 76 : 66,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: on ? QandTheme.red : Colors.grey.shade200, width: on ? 3 : 1),
-                                color: QandTheme.cream,
-                              ),
-                              child: ClipOval(
-                                child: ProductImage(
-                                  asset: p.asset,
-                                  imageUrl: p.imageUrl,
-                                  width: on ? 76 : 66,
-                                  height: on ? 76 : 66,
-                                  fit: BoxFit.cover,
-                                  iconSize: 28,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(p.title, style: TextStyle(fontSize: 12, fontWeight: on ? FontWeight.bold : FontWeight.normal, color: on ? QandTheme.red : Colors.black87)),
-                          ]),
-                        );
-                      },
-                    ),
-                  ),
+                  _categoryGrid(width),
                   if (_supabaseEmpty)
                     Container(
                       margin: const EdgeInsets.symmetric(vertical: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(20)),
-                      child: const Text('🛒 فعلاً محصولی برای فروش فعال نیست؛ بعداً سر بزن.', style: TextStyle(fontSize: 13)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(20)),
+                      child: const Text(
+                          '🛒 فعلاً محصولی برای فروش فعال نیست؛ بعداً سر بزن.',
+                          style: TextStyle(fontSize: 13)),
                     ),
-                  if (!_supabaseEmpty) ...[
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(color: QandTheme.cream, borderRadius: BorderRadius.circular(20)),
-                      child: Text('✨ ${current.title} تازه و خونگی', style: const TextStyle(fontSize: 13)),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => CustomCakeScreen(
+                                  username: widget.username))).then(
+                          (_) => _refreshCartCount()),
+                      icon: const Icon(Icons.cake),
+                      label: const Text('کیک تولد سفارشی بساز 🎂'),
                     ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => ProductDetailScreen(
-                                    product: current,
-                                    username: widget.username))).then(
-                            (_) => _refreshCartCount()),
-                        child: const Text('ادامه'),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => CustomCakeScreen(
-                                    username: widget.username))).then(
-                            (_) => _refreshCartCount()),
-                        icon: const Icon(Icons.cake),
-                        label: const Text('کیک تولد سفارشی بساز 🎂'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ]),
               ),
             ),
           ),
         ),
       ]),
+    );
+  }
+
+  /// چهار کارت شاخه اصلی سفارش (۲×۲) — هر کدام به لیست محصولاتش می‌رود.
+  Widget _categoryGrid(double width) {
+    final crossAxis = width < 360 ? 2 : 2;
+    final aspect = width < 360 ? 1.05 : 1.15;
+    return GridView.count(
+      crossAxisCount: crossAxis,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: aspect,
+      children: [
+        for (var i = 0; i < _mainCategories.length; i++)
+          _categoryCard(_mainCategories[i], i),
+      ],
+    );
+  }
+
+  Widget _categoryCard(String title, int index) {
+    final icons = [
+      Icons.icecream_outlined,
+      Icons.bakery_dining_outlined,
+      Icons.cake_outlined,
+      Icons.cookie_outlined,
+    ];
+    final emojis = ['🍮', '🥐', '🎂', '🍫'];
+    return Material(
+      color: QandTheme.cream,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CategoryProductsScreen(
+              category: title,
+              username: widget.username,
+            ),
+          ),
+        ).then((_) => _refreshCartCount()),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: QandTheme.red, width: 2),
+                ),
+                child: Center(
+                  child: Text(emojis[index % emojis.length],
+                      style: const TextStyle(fontSize: 26)),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 2),
+              Icon(icons[index % icons.length],
+                  size: 16, color: QandTheme.red),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

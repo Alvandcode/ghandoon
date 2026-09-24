@@ -8,6 +8,14 @@ class AppConfig {
   // لینک زرین‌پال را بعدا اینجا یا از پنل مدیر عوض کن. خالی = دکمه مخفی
   static const String defaultZarinpalLink = '';
 
+  /// چهار شاخه اصلی سفارش در صفحه خانه — مدیر از تنظیمات عوضشان می‌کند.
+  static const List<String> defaultMainCategories = [
+    'دسر',
+    'شیرینی',
+    'کیک',
+    'شکلات',
+  ];
+
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
     defaultValue: '',

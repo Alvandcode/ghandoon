@@ -10,6 +10,8 @@ import '../services/order_service.dart';
 import '../services/receipt_service.dart';
 import '../services/settings_service.dart';
 import '../utils/format.dart';
+import '../widgets/gradient_app_bar.dart';
+import '../widgets/safe_scaffold.dart';
 
 class PaymentScreen extends StatefulWidget {
   final QandOrder order;
@@ -133,28 +135,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Widget build(BuildContext context) {
     if (_orderGone) {
       return Scaffold(
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(90),
-          child: Container(decoration: QandTheme.headerGradient(radius: 24),
-            child: SafeArea(child: Row(children: [
-              IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_forward, color: Colors.white)),
-              const Text('پرداخت و فیش', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
-            ]))),
+        appBar: GradientAppBar.of(context, title: 'پرداخت و فیش'),
+        body: Center(
+          child: Padding(
+            padding: bottomSafePadding(context, base: 24),
+            child: const Text(
+                'این سفارش پیدا نشد (شاید حذف شده). برگرد و لیست را رفرش کن.',
+                textAlign: TextAlign.center),
+          ),
         ),
-        body: const Center(child: Text('این سفارش پیدا نشد (شاید حذف شده). برگرد و لیست را رفرش کن.')),
       );
     }
     final isPending = _order.status == OrderStatuses.pending;
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(90),
-        child: Container(decoration: QandTheme.headerGradient(radius: 24),
-          child: SafeArea(child: Row(children: [
-            IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_forward, color: Colors.white)),
-            const Text('پرداخت و فیش', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
-          ]))),
-      ),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      appBar: GradientAppBar.of(context, title: 'پرداخت و فیش'),
+      body: ListView(padding: bottomSafePadding(context), children: [
         if (isPending)
           Container(
             margin: const EdgeInsets.only(bottom: 12),

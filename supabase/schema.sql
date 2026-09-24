@@ -23,12 +23,13 @@ create table if not exists profiles (
 create table if not exists products (
   id uuid primary key default gen_random_uuid(),
   title text not null,
-  category text not null check (category in ('کیک خونگی','کوکی','بیسکوییت','کیک تولد')),
+  category text not null,
   description text default '',
   ingredients text default '',
   price int default 0,
   unit text default 'عدد',
   image_url text,
+  detail_image_url text,
   is_active boolean default true,
   created_at timestamptz default now()
 );
@@ -77,11 +78,16 @@ insert into app_settings (id) values (1) on conflict (id) do nothing;
 -- نیاز به یکتایی title دارد تا on conflict کار کند
 create unique index if not exists products_title_unique on products(title);
 insert into products (title, category, description, ingredients, price, unit) values
-('کیک خونگی', 'کیک خونگی', 'کیک خونگی تازه با عطر وانیل', 'آرد، تخم‌مرغ، شکر، کره، شیر، وانیل', 280000, 'عدد (1 کیلویی)'),
-('کوکی کشمشی', 'کوکی', 'کوکی ترد با کشمش و گردو', 'آرد، کره، شکر قهوه‌ای، کشمش، گردو', 180000, 'بسته نیم‌کیلویی'),
-('رولت خامه‌ای', 'بیسکوییت', 'رولت سبک با خامه وانیلی', 'آرد، تخم‌مرغ، شکر، خامه، وانیل', 220000, 'عدد'),
-('کیک تولد اختصاصی', 'کیک تولد', 'کیک چندطبقه با دیزاین دلخواه', 'کیک شکلاتی/وانیلی، خامه، میوه فصل', 650000, 'پایه (2 کیلویی)')
+('کیک خونگی', 'کیک', 'کیک خونگی تازه با عطر وانیل', 'آرد، تخم‌مرغ، شکر، کره، شیر، وانیل', 280000, 'عدد (1 کیلویی)'),
+('کوکی کشمشی', 'شیرینی', 'کوکی ترد با کشمش و گردو', 'آرد، کره، شکر قهوه‌ای، کشمش، گردو', 180000, 'بسته نیم‌کیلویی'),
+('رولت خامه‌ای', 'شیرینی', 'رولت سبک با خامه وانیلی', 'آرد، تخم‌مرغ، شکر، خامه، وانیل', 220000, 'عدد'),
+('کیک تولد اختصاصی', 'کیک', 'کیک چندطبقه با دیزاین دلخواه', 'کیک شکلاتی/وانیلی، خامه، میوه فصل', 650000, 'پایه (2 کیلویی)')
 on conflict (title) do nothing;
+
+-- دسته‌های اصلی پیش‌فرض (فقط وقتی خالی است؛ اجرای چندباره دستی مدیر را بازنویسی نمی‌کند)
+update app_settings
+set main_categories = '["دسر","شیرینی","کیک","شکلات"]'
+where id = 1 and (main_categories is null or main_categories = '');
 
 -- ============ RLS ============
 
@@ -125,6 +131,14 @@ alter table orders add column if not exists cake_options text default '';
 -- v2.3 — توکن پوش هر دستگاه (ثبت فقط از Edge Function با service_role؛
 -- کلاینت حق نوشتن مستقیم profiles را ندارد و RLS بسته می‌ماند)
 alter table profiles add column if not exists fcm_token text default '';
+
+-- ============ v2.4 — سلسله‌مراتب دسته‌ها + عکس توضیحات (اجرای چندباره امن) ============
+-- چهار شاخه اصلی سفارش در صفحه خانه (JSON array مثل ["دسر","شیرینی","کیک","شکلات"])
+alter table app_settings add column if not exists main_categories text default '';
+-- عکس صفحه توضیحات محصول (قبلاً در create نبود ولی اپ می‌نویسد)
+alter table products add column if not exists detail_image_url text;
+-- دسته دیگر به ۴ مقدار قدیمی قفل نیست؛ عنوان از تنظیمات مدیر می‌آید
+alter table products drop constraint if exists products_category_check;
 
 -- Storage buckets (از داشبورد Storage بساز): product-images (public) ، receipts (private)
 --   product-images: خواندن عمومی؛ آپلود فقط service_role.

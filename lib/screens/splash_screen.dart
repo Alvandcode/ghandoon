@@ -33,9 +33,12 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     final logoSize = Responsive.badge(MediaQuery.sizeOf(context).width,
         min: 110, max: 160, ratio: 0.36);
+    final topPad = MediaQuery.viewPaddingOf(context).top;
+    final bottomPad = MediaQuery.viewPaddingOf(context).bottom;
     return Scaffold(
       body: Container(
         decoration: QandTheme.headerGradient(radius: 0),
+        padding: EdgeInsets.only(top: topPad, bottom: bottomPad),
         child: Stack(
           children: [
             Center(
@@ -70,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Widget _logo(double size) {
     return ClipOval(
-      child: Image.asset('assets/logo/logo.png',
+      child: Image.asset('assets/logo/splash.png',
           width: size,
           height: size,
           fit: BoxFit.cover,

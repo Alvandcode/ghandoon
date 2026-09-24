@@ -4,6 +4,8 @@ import '../models/order.dart';
 import '../services/notification_service.dart';
 import '../services/order_service.dart';
 import '../utils/format.dart';
+import '../widgets/gradient_app_bar.dart';
+import '../widgets/safe_scaffold.dart';
 import 'payment_screen.dart';
 import 'chat_screen.dart';
 
@@ -87,19 +89,23 @@ class _TrackOrderScreenState extends State<TrackOrderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(90),
-        child: Container(decoration: QandTheme.headerGradient(radius: 24),
-          child: const SafeArea(child: Center(child: Text('پیگیری سفارش‌ها', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17))))),
-      ),
+      appBar: GradientAppBar.of(
+          context, title: 'پیگیری سفارش‌ها', showBack: false),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _orders.isEmpty
-              ? const Center(child: Text('هنوز سفارشی ثبت نکردی 🍰\nاز صفحه اصلی یک محصول انتخاب کن.'))
+              ? Center(
+                  child: Padding(
+                    padding: bottomSafePadding(context, base: 24),
+                    child: const Text(
+                        'هنوز سفارشی ثبت نکردی 🍰\nاز صفحه اصلی یک محصول انتخاب کن.',
+                        textAlign: TextAlign.center),
+                  ),
+                )
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(14),
+                    padding: bottomSafePadding(context, base: 14),
                     itemCount: _orders.length,
                     itemBuilder: (_, i) => _card(_orders[i]),
                   ),

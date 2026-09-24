@@ -4,7 +4,10 @@ import '../models/product.dart';
 import '../services/cart_service.dart';
 import '../utils/format.dart';
 import '../utils/order_rules.dart';
+import '../utils/responsive.dart';
+import '../widgets/gradient_app_bar.dart';
 import '../widgets/product_image.dart';
+import '../widgets/safe_scaffold.dart';
 import 'cart_screen.dart';
 import 'order_form_screen.dart';
 import 'chat_screen.dart';
@@ -48,46 +51,42 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget build(BuildContext context) {
     final product = widget.product;
     final username = widget.username;
+    final width = MediaQuery.sizeOf(context).width;
+    final imgH = (width * 0.5).clamp(140.0, 240.0);
     return Scaffold(
+      appBar: GradientAppBar.of(
+        context,
+        title: product.category,
+        actions: [
+          IconButton(
+            tooltip: 'سبد خرید',
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => CartScreen(username: username))),
+            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
+        padding: EdgeInsets.only(bottom: bottomSafeOnly(context, extra: 24)),
         child: Column(children: [
           Container(
-            decoration: QandTheme.headerGradient(),
-            padding: const EdgeInsets.fromLTRB(16, 48, 16, 24),
-            child: Column(children: [
-              Row(children: [
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_forward, color: Colors.white)),
-                const Spacer(),
-                Text(product.category, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: Colors.white24,
-                  child: IconButton(
-                    tooltip: 'سبد خرید',
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                CartScreen(username: username))),
-                    icon: const Icon(Icons.shopping_cart_outlined,
-                        color: Colors.white),
-                  ),
-                ),
-              ]),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                // عکس صفحه توضیحات اگر مدیر گذاشته، وگرنه همان عکس اصلی
-                child: ProductImage(
-                  asset: product.asset,
-                  imageUrl: product.detailImageUrl ?? product.imageUrl,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  iconSize: 80,
-                ),
+            decoration: QandTheme.headerGradient(radius: 24),
+            padding: EdgeInsets.fromLTRB(
+                Responsive.hPad(width), 8, Responsive.hPad(width), 24),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              // عکس صفحه توضیحات اگر مدیر گذاشته، وگرنه همان عکس اصلی
+              child: ProductImage(
+                asset: product.asset,
+                imageUrl: product.detailImageUrl ?? product.imageUrl,
+                height: imgH,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                iconSize: 80,
               ),
-            ]),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(16),

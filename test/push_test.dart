@@ -55,8 +55,8 @@ void main() {
     });
   });
 
-  group('Responsive.badge', () {
-    test('بین کف و سقف قفل می‌شود', () {
+  group('Responsive', () {
+    test('badge بین کف و سقف قفل می‌شود', () {
       expect(Responsive.badge(200, min: 110, max: 190, ratio: 0.42), 110);
       expect(Responsive.badge(1000, min: 110, max: 190, ratio: 0.42), 190);
       expect(Responsive.badge(360, min: 110, max: 190, ratio: 0.42),
@@ -66,6 +66,26 @@ void main() {
     test('isNarrow', () {
       expect(Responsive.isNarrow(320), isTrue);
       expect(Responsive.isNarrow(360), isFalse);
+    });
+
+    test('bottomSafe هرگز کمتر از inset نویگیشن نیست', () {
+      // ناوبری دکمه‌ای معمول ~۴۸
+      expect(Responsive.bottomSafe(48, extra: 16), 64);
+      // ژستی/شفاف کوچک
+      expect(Responsive.bottomSafe(0, extra: 16), 16);
+      expect(Responsive.bottomSafe(24, extra: 8), 32);
+      // منفی/خراب clamp می‌شود
+      expect(Responsive.bottomSafe(-5, extra: 10), 10);
+    });
+
+    test('topSafe ناچ بلند را جمع می‌کند', () {
+      expect(Responsive.topSafe(24, extra: 16), 40);
+      expect(Responsive.topSafe(48, extra: 24), 72);
+    });
+
+    test('hPad روی عرض کم جمع‌وجورتر است', () {
+      expect(Responsive.hPad(320), 12);
+      expect(Responsive.hPad(400), 16);
     });
   });
 }

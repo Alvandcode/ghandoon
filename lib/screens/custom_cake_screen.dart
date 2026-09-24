@@ -3,6 +3,8 @@ import '../theme/qand_theme.dart';
 import '../services/cart_service.dart';
 import '../utils/format.dart';
 import '../utils/order_rules.dart';
+import '../widgets/gradient_app_bar.dart';
+import '../widgets/safe_scaffold.dart';
 import 'cart_screen.dart';
 
 /// کیک‌ساز سفارشی: وزن / طعم / فیلینگ / متن روی کیک → افزودن به سبد.
@@ -64,24 +66,8 @@ class _CustomCakeScreenState extends State<CustomCakeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(90),
-        child: Container(
-          decoration: QandTheme.headerGradient(radius: 24),
-          child: SafeArea(
-              child: Row(children: [
-            IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_forward, color: Colors.white)),
-            const Text('کیک تولد سفارشی 🎂',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17)),
-          ])),
-        ),
-      ),
-      body: ListView(padding: const EdgeInsets.all(16), children: [
+      appBar: GradientAppBar.of(context, title: 'کیک تولد سفارشی 🎂'),
+      body: ListView(padding: bottomSafePadding(context), children: [
         const Text('وزن کیک', style: TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Wrap(
