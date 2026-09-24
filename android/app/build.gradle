@@ -44,8 +44,9 @@ android {
         // اندروید 7 (API 24) تا اندروید 15 (API 35) : min 24 ، target 35
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        // از pubspec / --build-number می‌آید تا هر release بالاتر از قبلی باشد
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
         multiDexEnabled = true
     }
 
