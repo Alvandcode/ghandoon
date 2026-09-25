@@ -15,8 +15,12 @@ flutter test                    # همه تست‌ها باید سبز باشن�
 
 - EN: Keep the offline-first behavior: the app must never crash when Supabase is unreachable.
 - FA: رفتار offline-first را حفظ کن؛ اپ هیچ‌وقت نباید وقتی سوپابیس در دسترس نیست کرش کند.
-- EN: Never weaken the Supabase RLS policies in `supabase/schema.sql` (no `for all using (true)` client policies).
-- FA: پالیسی‌های RLS در `supabase/schema.sql` را سست نکن (هیچ پالیسی بازِ کلاینتی).
+- EN: Keep RLS tight in `supabase/schema.sql`. The only allowed open client write
+  policy is `products` (`admin products write`) — needed because the admin panel
+  has no Supabase Auth yet. Do not re-open `orders`/`messages`/`profiles`/`app_settings`.
+- FA: پالیسی‌های RLS در `supabase/schema.sql` را سفت نگه دار. تنها پالیسی نوشتنِ بازِ
+  مجاز `products` است (`admin products write`) چون پنل مدیر هنوز Supabase Auth ندارد.
+  `orders`/`messages`/`profiles`/`app_settings` را باز نکن.
 - EN: Secrets (`key.properties`, keystores, service keys) must never be committed.
 - FA: هرگز secret ها (key.properties، کی‌استور، کلیدهای سرویس) کامیت نشوند.
 - EN: Commit `pubspec.lock` for reproducible CI builds.

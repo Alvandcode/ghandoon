@@ -120,12 +120,13 @@ class ProductRepository {
     bool isActive = true,
     List<String> allowedCategories = productCategories,
   }) async {
-    if (validateProductFields(
-            title: title,
-            priceText: '$price',
-            category: category,
-            allowedCategories: allowedCategories) !=
-        null) {
+    final invalid = validateProductFields(
+        title: title,
+        priceText: '$price',
+        category: category,
+        allowedCategories: allowedCategories);
+    if (invalid != null) {
+      lastWriteError = invalid;
       return null;
     }
     final client = SupabaseService.clientOrNull();
@@ -175,12 +176,13 @@ class ProductRepository {
     bool? isActive,
     List<String> allowedCategories = productCategories,
   }) async {
-    if (validateProductFields(
-            title: title,
-            priceText: '$price',
-            category: category,
-            allowedCategories: allowedCategories) !=
-        null) {
+    final invalid = validateProductFields(
+        title: title,
+        priceText: '$price',
+        category: category,
+        allowedCategories: allowedCategories);
+    if (invalid != null) {
+      lastWriteError = invalid;
       return null;
     }
     final client = SupabaseService.clientOrNull();
