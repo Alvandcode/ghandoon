@@ -183,8 +183,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
             );
       if (!mounted) return;
       if (saved == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('ذخیره ناموفق بود؛ اتصال را بررسی کن')));
+        final why = repo.lastWriteError;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(why == null
+                ? 'ذخیره ناموفق بود؛ اتصال را بررسی کن'
+                : 'ذخیره ناموفق: $why')));
         return;
       }
       Navigator.pop(context, true);

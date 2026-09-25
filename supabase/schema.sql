@@ -1,4 +1,4 @@
--- سوپابیس قنادی قند — v2 (امن‌شده)
+-- سوپابیس قنادی قند — v2.1 (امن‌شده + نوشتن محصول از پنل مدیر)
 -- این فایل را در SQL Editor سوپابیس اجرا کن (اجرای چندباره امن است؛ سید تکراری نمی‌سازد)
 --
 -- ⚠️ امنیت — چه چیزی عوض شد:
@@ -6,10 +6,15 @@
 -- می‌توانست همه سفارش‌ها/پیام‌ها را بخواند و حتی شماره کارت را عوض کند.
 -- حالا:
 --   * پالیسی‌های باز قبلی به‌صورت idempotent DROP می‌شوند.
---   * products و app_settings: فقط خواندن عمومی؛ نوشتن فقط با service_role
+--   * products: خواندن عمومی + نوشتن برای پنل مدیر (بدون Supabase Auth هنوز
+--     اپ نمی‌تواند با service_role کار کند؛ بدون این پالیسی «افزودن محصول»
+--     داخل اپ همیشه permission denied می‌دهد).
+--   * app_settings: فقط خواندن عمومی؛ نوشتن فقط service_role
 --     (تغییر شماره کارت/زرین‌پال فقط از داشبورد سوپابیس انجام شود، نه از اپ).
 --   * profiles / orders / messages: فعلاً هیچ پالیسی کلاینتی ندارند (فقط service_role)
 --     چون احراز هویت هنوز لوکال است. بعد از مهاجرت به Supabase Auth، بلوک v3 پایین را فعال کن.
+--   * بعد از مهاجرت واقعی به Supabase Auth، پالیسی نوشتن products را به
+--     role ادمین محدود کن (اینجا موقتاً باز است تا پنل داخل اپ کار کند).
 
 create table if not exists profiles (
   id uuid primary key default gen_random_uuid(),
@@ -104,9 +109,14 @@ drop policy if exists "open all orders v1" on orders;
 drop policy if exists "open all msgs v1" on messages;
 drop policy if exists "open settings v1" on app_settings;
 
--- products: خواندن عمومی؛ نوشتن فقط service_role (پنل ادمین/سید)
+-- products: خواندن عمومی؛ نوشتن برای پنل مدیر (بدون Auth هنوز service_role در اپ ممکن نیست)
 drop policy if exists "public read products" on products;
 create policy "public read products" on products for select using (true);
+drop policy if exists "admin products write" on products;
+create policy "admin products write" on products
+  for all
+  using (true)
+  with check (true);
 
 -- app_settings: خواندن عمومی (شماره کارت/زرین‌پال برای نمایش لازم است)؛ نوشتن فقط service_role
 drop policy if exists "settings read for all" on app_settings;
@@ -140,9 +150,26 @@ alter table products add column if not exists detail_image_url text;
 -- دسته دیگر به ۴ مقدار قدیمی قفل نیست؛ عنوان از تنظیمات مدیر می‌آید
 alter table products drop constraint if exists products_category_check;
 
--- Storage buckets (از داشبورد Storage بساز): product-images (public) ، receipts (private)
---   product-images: خواندن عمومی؛ آپلود فقط service_role.
---   receipts: خصوصی؛ بعد از Auth هر کاربر فقط مسیر user_id/ خودش (بلوک v3).
+-- Storage: باکت product-images (عمومی‌خوان) + حق آپلود برای پنل مدیر.
+-- اجرای چندباره امن است. اگر باکت از داشبورد ساخته شده باشد on conflict می‌پرد.
+-- receipts همچنان از داشبورد جدا ساخته می‌شود (خصوصی، بعد از Auth).
+insert into storage.buckets (id, name, public)
+  values ('product-images', 'product-images', true)
+  on conflict (id) do update set public = excluded.public;
+
+drop policy if exists "product images public read" on storage.objects;
+create policy "product images public read" on storage.objects
+  for select using (bucket_id = 'product-images');
+
+drop policy if exists "product images upload" on storage.objects;
+create policy "product images upload" on storage.objects
+  for insert to authenticated, anon
+  with check (bucket_id = 'product-images');
+
+drop policy if exists "product images delete" on storage.objects;
+create policy "product images delete" on storage.objects
+  for delete to authenticated, anon
+  using (bucket_id = 'product-images');
 
 -- ============ v3 — بعد از مهاجرت به Supabase Auth این بلوک را فعال کن ============
 -- پیش‌نیاز: ورود/ثبت‌نام با supabase.auth و user_id سفارش = auth.uid().

@@ -75,7 +75,10 @@ flutter run --dart-define=SUPABASE_URL=https://xyz.supabase.co --dart-define=SUP
 
 ### امنیت سوپابیس (مهم)
 `schema.sql` حالا RLS سفت دارد:
-- `products` و `app_settings`: خواندن عمومی، نوشتن فقط با service_role.
+- `products`: خواندن عمومی؛ نوشتن برای پنل مدیر داخل اپ (بدون Supabase Auth هنوز
+  service_role در کلاینت ممکن نیست — بدون این پالیسی «افزودن محصول» permission denied می‌دهد).
+  بعد از مهاجرت به Auth، نوشتن را به ادمین واقعی محدود کن.
+- `app_settings`: خواندن عمومی، نوشتن فقط با service_role.
 - تغییر شماره کارت/زرین‌پال فقط از داشبورد سوپابیس (Table Editor) انجام شود — نه از اپ.
 - `orders`/`messages`/`profiles`: تا مهاجرت به Supabase Auth هیچ دسترسی کلاینتی باز نیست.
 

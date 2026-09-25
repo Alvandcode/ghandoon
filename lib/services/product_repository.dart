@@ -22,6 +22,10 @@ enum ProductSource { demoOffline, supabase, supabaseEmpty }
 ///     (قبلاً «خالی» با دمو قاطی می‌شد و فروشنده فکر می‌کرد محصولاتش حذف شده‌اند).
 ///   * خطای شبکه: fallback دمو + علت، تا اپ هیچ‌وقت صفحه خالی/کرش نشان ندهد.
 class ProductRepository {
+  /// آخرین علت شکست نوشتن روی سرور — تا UI پیام درست بدهد
+  /// (پالیسی/دسترسی را با «قطع اینترنت» قاطی نکند).
+  String? lastWriteError;
+
   Future<ProductLoadResult> loadActiveWithSource() async {
     final client = SupabaseService.clientOrNull();
     if (client == null) {
@@ -125,7 +129,10 @@ class ProductRepository {
       return null;
     }
     final client = SupabaseService.clientOrNull();
-    if (client == null) return null;
+    if (client == null) {
+      lastWriteError = 'سوپابیس وصل نیست';
+      return null;
+    }
     try {
       final rows = await client.from('products').insert({
         'title': title.trim(),
@@ -141,9 +148,14 @@ class ProductRepository {
         'is_active': isActive,
       }).select();
       final list = rows as List<dynamic>;
-      if (list.isEmpty) return null;
+      if (list.isEmpty) {
+        lastWriteError = 'سرور ردیفی برنگرداند';
+        return null;
+      }
+      lastWriteError = null;
       return Product.fromMap(Map<String, dynamic>.from(list.first as Map));
-    } catch (_) {
+    } catch (e) {
+      lastWriteError = describeWriteError(e);
       return null;
     }
   }
@@ -172,7 +184,10 @@ class ProductRepository {
       return null;
     }
     final client = SupabaseService.clientOrNull();
-    if (client == null) return null;
+    if (client == null) {
+      lastWriteError = 'سوپابیس وصل نیست';
+      return null;
+    }
     try {
       final patch = <String, dynamic>{
         'title': title.trim(),
@@ -194,10 +209,36 @@ class ProductRepository {
       final rows =
           await client.from('products').update(patch).eq('id', id).select();
       final list = rows as List<dynamic>;
-      if (list.isEmpty) return null;
+      if (list.isEmpty) {
+        lastWriteError = 'ردیفی برای ویرایش پیدا نشد';
+        return null;
+      }
+      lastWriteError = null;
       return Product.fromMap(Map<String, dynamic>.from(list.first as Map));
-    } catch (_) {
+    } catch (e) {
+      lastWriteError = describeWriteError(e);
       return null;
     }
+  }
+
+  /// نگاشت خطای Postgrest/شبکه به پیام فارسی کوتاه برای SnackBar.
+  static String describeWriteError(Object e) {
+    final s = e.toString();
+    if (s.contains('42501') ||
+        s.toLowerCase().contains('permission') ||
+        s.toLowerCase().contains('row-level security') ||
+        s.toLowerCase().contains('rls')) {
+      return 'دسترسی نوشتن بسته است (پالیسی RLS سوپابیس)';
+    }
+    if (s.contains('23505') || s.toLowerCase().contains('duplicate') ||
+        s.toLowerCase().contains('unique')) {
+      return 'این عنوان محصول قبلاً ثبت شده است';
+    }
+    if (s.contains('SocketException') ||
+        s.toLowerCase().contains('failed host lookup') ||
+        s.toLowerCase().contains('connection')) {
+      return 'اتصال شبکه قطع است';
+    }
+    return 'خطای ناشناخته سرور';
   }
 }
