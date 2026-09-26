@@ -131,6 +131,50 @@ void main() {
     });
   });
 
+  group('describeWriteError — پیام فارسی علت شکست ذخیره', () {
+    test('42501/RLS → دسترسی نوشتن بسته', () {
+      expect(
+          ProductRepository.describeWriteError(
+              Exception('PostgrestException{code: 42501, message: permission}')),
+          contains('دسترسی نوشتن بسته'));
+      expect(
+          ProductRepository.describeWriteError(
+              Exception('new row violates row-level security policy')),
+          contains('دسترسی نوشتن بسته'));
+    });
+
+    test('23505 unique → عنوان تکراری', () {
+      expect(
+          ProductRepository.describeWriteError(
+              Exception('PostgrestException{code: 23505, message: duplicate}')),
+          contains('قبلاً ثبت شده'));
+    });
+
+    test('23514 check constraint → اجرای schema.sql', () {
+      expect(
+          ProductRepository.describeWriteError(Exception(
+              'new row for relation "products" violates check constraint "products_category_check"')),
+          contains('schema.sql'));
+    });
+
+    test('42703 ستون ناقص → اجرای schema.sql', () {
+      expect(
+          ProductRepository.describeWriteError(
+              Exception('column app_settings.main_categories does not exist')),
+          contains('schema.sql'));
+    });
+
+    test('قطع شبکه → پیام اتصال', () {
+      expect(ProductRepository.describeWriteError(Exception('SocketException: Failed host lookup')),
+          contains('اتصال شبکه قطع'));
+    });
+
+    test('ناشناخته → خطای ناشناخته سرور', () {
+      expect(ProductRepository.describeWriteError(Exception('boom')),
+          contains('ناشناخته'));
+    });
+  });
+
   group('Product — عکس صفحه توضیحات', () {
     test('fromMap ستون detail_image_url را می‌خواند', () {
       final p = Product.fromMap({

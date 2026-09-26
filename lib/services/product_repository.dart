@@ -236,6 +236,12 @@ class ProductRepository {
         s.toLowerCase().contains('unique')) {
       return 'این عنوان محصول قبلاً ثبت شده است';
     }
+    if (s.contains('23514') || s.toLowerCase().contains('check constraint')) {
+      return 'دسته محصول در دیتابیس قدیمی است — فایل supabase/schema.sql را در SQL Editor سوپابیس اجرا کنید';
+    }
+    if (s.contains('42703') || s.toLowerCase().contains('does not exist')) {
+      return 'ساختار دیتابیس به‌روز نیست — فایل supabase/schema.sql را در SQL Editor سوپابیس اجرا کنید';
+    }
     if (s.contains('SocketException') ||
         s.toLowerCase().contains('failed host lookup') ||
         s.toLowerCase().contains('connection')) {
