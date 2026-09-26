@@ -45,3 +45,13 @@ String normalizeProductCategory(String category, List<String> mains) {
   if (legacy != null && mains.contains(legacy)) return legacy;
   return t;
 }
+
+/// آیا محصول با این دسته (قدیمی یا جدید) باید داخل شاخه اصلی [main] نشان داده شود؟
+/// فیلتر صفحه لیست محصولات از همین استفاده می‌کند تا محصولاتی که هنوز دسته
+/// قدیمی سرور دارند (کوکی/کیک خونگی/بیسکوییت/کیک تولد) زیر شاخه درست بیایند
+/// و «هنوز محصولی توی این دسته نیست» نشان ندهند.
+bool productInMainCategory(String category, String main) {
+  final m = main.trim();
+  if (m.isEmpty) return false;
+  return normalizeProductCategory(category, [m]) == m;
+}

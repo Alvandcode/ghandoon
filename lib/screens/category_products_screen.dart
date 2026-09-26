@@ -4,6 +4,7 @@ import '../models/product.dart';
 import '../services/cart_service.dart';
 import '../services/product_repository.dart';
 import '../utils/format.dart';
+import '../utils/product_validate.dart';
 import '../widgets/gradient_app_bar.dart';
 import '../widgets/product_image.dart';
 import '../widgets/safe_scaffold.dart';
@@ -62,7 +63,7 @@ class _CategoryProductsScreenState extends State<CategoryProductsScreen> {
   }
 
   List<Product> get _items => _all
-      .where((p) => p.category.trim() == widget.category.trim())
+      .where((p) => productInMainCategory(p.category, widget.category))
       .toList();
 
   @override

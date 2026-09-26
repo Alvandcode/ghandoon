@@ -105,6 +105,31 @@ void main() {
     });
   });
 
+  group('productInMainCategory', () {
+    test('دسته جدید در شاخه خودش است', () {
+      expect(productInMainCategory('کیک', 'کیک'), isTrue);
+      expect(productInMainCategory('  دسر  ', 'دسر'), isTrue);
+    });
+
+    test('دسته قدیمی سرور زیر شاخه اصلی درست می‌آید', () {
+      expect(productInMainCategory('کیک خونگی', 'کیک'), isTrue);
+      expect(productInMainCategory('کیک تولد', 'کیک'), isTrue);
+      expect(productInMainCategory('کوکی', 'شیرینی'), isTrue);
+      expect(productInMainCategory('بیسکوییت', 'شیرینی'), isTrue);
+    });
+
+    test('دسته قدیمی زیر شاخه دیگر نشان داده نمی‌شود', () {
+      expect(productInMainCategory('کوکی', 'کیک'), isFalse);
+      expect(productInMainCategory('کیک خونگی', 'شکلات'), isFalse);
+    });
+
+    test('دسته خالی/نامعلوم در هیچ شاخه‌ای نیست', () {
+      expect(productInMainCategory('', 'کیک'), isFalse);
+      expect(productInMainCategory('پیتزا', 'کیک'), isFalse);
+      expect(productInMainCategory('کیک', ''), isFalse);
+    });
+  });
+
   group('ProductRepository — آفلاین', () {    test('ساخت/ویرایش/تغییر وضعیت آفلاین null/false می‌دهد (نه کرش)', () async {
       SharedPreferences.setMockInitialValues({});
       final repo = ProductRepository();
