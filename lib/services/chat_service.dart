@@ -82,6 +82,8 @@ class ChatService {
       await client.from('messages').insert(msg.toMap());
       return true;
     } catch (_) {
+      // RLS/خطا: پیام نباید گم شود — مثل حالت آفلاین در تاریخچه محلی بماند
+      await _localAdd(from: from, text: text);
       return false;
     }
   }
