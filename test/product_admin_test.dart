@@ -145,6 +145,14 @@ void main() {
       expect(await repo.updatePrice('x', 1000), isFalse);
     });
 
+    test('حذف محصول آفلاین false می‌دهد و علت را می‌گذارد (نه کرش)', () async {
+      SharedPreferences.setMockInitialValues({});
+      final repo = ProductRepository();
+      expect(await repo.deleteProduct('x'), isFalse);
+      expect(repo.lastWriteError, isNotNull);
+      expect(repo.lastWriteError, contains('سوپابیس'));
+    });
+
     test('ورودی نامعتبر حتی بدون تماس با سرور رد می‌شود', () async {
       SharedPreferences.setMockInitialValues({});
       final repo = ProductRepository();

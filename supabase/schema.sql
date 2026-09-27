@@ -136,7 +136,7 @@ alter table orders enable row level security;
 alter table messages enable row level security;
 alter table app_settings enable row level security;
 
--- products: خواندن عمومی؛ نوشتن برای پنل مدیر.
+-- products: خواندن عمومی؛ نوشتن و حذف برای پنل مدیر.
 -- (تنها استثنا روی تولید — بیشتر در CONTRIBUTING.md)
 drop policy if exists "open products write v1" on products;
 drop policy if exists "public read products" on products;

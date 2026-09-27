@@ -444,6 +444,11 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
                     onPressed: () => _openProductEdit(p),
                     icon: const Icon(Icons.edit, color: QandTheme.red),
                   ),
+                  IconButton(
+                    tooltip: 'حذف کامل محصول',
+                    onPressed: () => _askDeleteProduct(p),
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  ),
                   Switch(
                     value: p.isActive,
                     onChanged: (v) => _toggleProduct(p, v),
@@ -500,6 +505,46 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         final i = _products.indexWhere((e) => e.id == p.id);
         if (i != -1) _products[i] = p.copyWith(isActive: v);
       });
+    }
+  }
+
+  /// حذف محصول: اول تأیید می‌گیرد (چون برگشت‌پذیر نیست)، بعد از سرور.
+  Future<void> _askDeleteProduct(Product p) async {
+    if (!SupabaseService.isReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('آفلاین هستی؛ اتصال سوپابیس لازم است')));
+      return;
+    }
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('حذف محصول؟'),
+        content: Text('محصول «${p.title}» برای همیشه حذف می‌شود.\n'
+            'اگر فقط می‌خواهی از فروش خارج شود، کلید خاموش/روشن را بزن.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('انصراف'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف کن'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    final repo = ProductRepository();
+    final ok = await repo.deleteProduct(p.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok
+            ? 'محصول حذف شد'
+            : 'حذف نشد: ${repo.lastWriteError ?? 'خطای نامشخص'}')));
+    if (ok) {
+      setState(() => _products.removeWhere((e) => e.id == p.id));
     }
   }
 

@@ -223,6 +223,33 @@ class ProductRepository {
     }
   }
 
+  /// حذف کامل محصول از سرور (فقط آنلاین؛ آفلاین false).
+  /// اگر RLS جلوی حذف را بگیرد، [lastWriteError] پیام فارسی می‌گیرد تا UI
+  /// به‌جای «ناموفق بود» بی‌دلیل، علت واقعی را نشان دهد.
+  /// توجه: اگر ردیفی حذف نشود (RLS ساکت) آن را خطا می‌گیریم، نه موفقیت.
+  Future<bool> deleteProduct(String id) async {
+    final client = SupabaseService.clientOrNull();
+    if (client == null) {
+      lastWriteError = 'سوپابیس وصل نیست';
+      return false;
+    }
+    try {
+      final rows =
+          await client.from('products').delete().eq('id', id).select();
+      final list = rows as List<dynamic>;
+      if (list.isEmpty) {
+        lastWriteError =
+            'حذف انجام نشد (دسترسی RLS سوپابیس روی حذف بسته است)';
+        return false;
+      }
+      lastWriteError = null;
+      return true;
+    } catch (e) {
+      lastWriteError = describeWriteError(e);
+      return false;
+    }
+  }
+
   /// نگاشت خطای Postgrest/شبکه به پیام فارسی کوتاه برای SnackBar.
   static String describeWriteError(Object e) {
     final s = e.toString();
