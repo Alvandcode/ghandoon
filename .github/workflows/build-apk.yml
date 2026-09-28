@@ -75,15 +75,26 @@ jobs:
         with:
           name: qand-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+      # نسخه سبک فقط مخصوص گوشی‌های مدرن (arm64) — حدود ۳۰ مگابایت به‌جای ۶۵.
+      # برای وقتی که دانلود یا نصب فایل بزرگ روی گوشی به مشکل می‌خورد.
+      - name: Build arm64-only APK (smaller, same versionCode)
+        run: flutter build apk --release --split-per-abi --build-number=${{ github.run_number }} --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qand-apk-arm64
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
       # ریلیز نسخه‌دار: هر push به main یک تگ متفاوت می‌گیرد تا ریلیز قبلی
       # بازنویسی نشود (قبلاً همیشه تگ latest روی هم کپی می‌شد).
       - name: Compute release tag
         id: tag
         run: echo "name=v$(date +'%Y.%m.%d')-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
       - run: cp build/app/outputs/flutter-apk/app-release.apk qand-app.apk
+      - run: cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk qand-app-arm64.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.name }}
           name: "قنادی قند — ${{ steps.tag.outputs.name }}"
-          body: "APK آماده نصب (اندروید ۷ تا ۱۵). بیلد خودکار از main."
-          files: qand-app.apk
+          body: "APK آماده نصب (اندروید ۷ تا ۱۵). بیلد خودکار از main. اگر نصب فایل بزرگ روی گوشی به مشکل خورد، فایل سبک arm64 (≈۳۰ مگابایت) را امتحان کن."
+          files: |
+            qand-app.apk
+            qand-app-arm64.apk
