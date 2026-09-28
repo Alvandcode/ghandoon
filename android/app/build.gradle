@@ -57,10 +57,9 @@ android {
                 storePassword = keystoreProperties['storePassword']
                 keyAlias = keystoreProperties['keyAlias']
                 keyPassword = keystoreProperties['keyPassword']
-                // هر دو طرح امضا فعال: v2 برای اندروید ۷ به بالا و v1 (JAR)
-                // برای نصب‌کننده‌هایی که فقط امضای قدیمی را می‌پذیرند.
-                // minSdk=24 است و فعال بودن v1 هزینه‌ای ندارد، ولی نصب را روی
-                // گوشی‌های سخت‌گیر (بعضی نسخه‌های سامسونگ) قابل‌اعتمادتر می‌کند.
+                // AGP با minSdk=24 امضای v1 (JAR) را خودکار حذف می‌کند؛ اگر
+                // v1 واقعاً لازم شد باید روی خود APK امضا شود (apksigner sign
+                // با --v1-signing-enabled). فعلاً v2 کافی است و استاندارد است.
                 enableV1Signing = true
                 enableV2Signing = true
             }
