@@ -7,6 +7,7 @@ import '../services/product_repository.dart';
 import '../services/push_service.dart';
 import '../services/settings_service.dart';
 import '../utils/responsive.dart';
+import '../widgets/character_blink.dart';
 import '../widgets/safe_scaffold.dart';
 import 'cart_screen.dart';
 import 'category_products_screen.dart';
@@ -26,7 +27,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
   bool _isAdmin = false;
-  // چهار شاخه اصلی سفارش — از تنظیمات مدیر (قابل ویرایش)
+  // شاخه‌های اصلی سفارش — از تنظیمات مدیر (ساخت/ویرایش/حذف)
   List<String> _mainCategories = List.of(AppConfig.defaultMainCategories);
   // «سوپابیس وصل است ولی فروشگاه خالی» — جدا از حالت آفلاین
   bool _supabaseEmpty = false;
@@ -202,27 +203,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontSize: 24,
                     fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
-            // لوگوی دایره‌ای قندون — اندازه با عرض صفحه تنظیم می‌شود.
+            // کاراکتر دایره‌ای قندون — چشمک‌زن (متحرک اگر ساخته شده باشد، وگرنه ثابت).
             Builder(builder: (context) {
               final s = Responsive.badge(width, min: 120, max: 190, ratio: 0.46);
-              return ClipOval(
-                child: Image.asset(
-                  'assets/images/chef.png',
-                  height: s,
-                  width: s,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    height: s,
-                    width: s,
-                    decoration: const BoxDecoration(
-                        color: Colors.white, shape: BoxShape.circle),
-                    child: Center(
-                      child: Text('👩‍🍳',
-                          style: TextStyle(fontSize: s * 0.45)),
-                    ),
-                  ),
-                ),
-              );
+              return BlinkingCharacter(size: s);
             }),
           ]),
         ),
@@ -234,13 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Padding(
                 padding: EdgeInsets.all(Responsive.hPad(width, normal: 18, narrow: 14)),
                 child: Column(children: [
-                  const Text('کدوم شاخه رو می‌خوای؟',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 4),
-                  const Text('یک دسته اصلی رو انتخاب کن تا محصولاتش رو ببینی',
-                      style: TextStyle(fontSize: 12, color: Colors.black54)),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 2),
                   _categoryGrid(width),
                   if (_supabaseEmpty)
                     Container(
@@ -277,8 +255,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// چهار کارت شاخه اصلی سفارش (۲×۲) — هر کدام به لیست محصولاتش می‌رود.
+  /// کارت‌های شاخه‌های اصلی سفارش (داینامیک؛ ۲ ستونه) — هر کدام به لیست محصولاتش می‌رود.
   Widget _categoryGrid(double width) {
+    if (_mainCategories.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Text('هنوز شاخه‌ای ثبت نشده 🍰',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.black54)),
+      );
+    }
     final crossAxis = width < 360 ? 2 : 2;
     final aspect = width < 360 ? 1.05 : 1.15;
     return GridView.count(
