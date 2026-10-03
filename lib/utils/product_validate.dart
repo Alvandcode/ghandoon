@@ -4,12 +4,13 @@ import '../config/app_config.dart';
 import 'format.dart';
 
 /// دسته‌های پیش‌فرض (وقتی تنظیمات سرور در دسترس نیست).
-/// فهرست واقعی چهار شاخه اصلی از SettingsService می‌آید و مدیر عوضش می‌کند.
+/// فهرست واقعی شاخه‌های اصلی (داینامیک: ۱ تا ۸) از SettingsService می‌آید
+/// و مدیر آن را می‌سازد/ویرایش/حذف می‌کند.
 const productCategories = AppConfig.defaultMainCategories;
 
 /// null یعنی معتبر؛ وگرنه پیام خطای فارسی برای نمایش.
 /// [priceText] همان متن تایپ‌شده کاربر است (ارقام فارسی هم قبول).
-/// [allowedCategories] چهار شاخه اصلی فروشگاه؛ خالی = پیش‌فرض.
+/// [allowedCategories] شاخه‌های اصلی فروشگاه؛ خالی = پیش‌فرض.
 String? validateProductFields({
   required String title,
   required String priceText,

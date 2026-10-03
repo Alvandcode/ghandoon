@@ -31,7 +31,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   late final TextEditingController _ingr;
   late String _category;
   late bool _active;
-  /// چهار شاخه اصلی از تنظیمات (پیش‌فرض = AppConfig).
+  /// شاخه‌ها از تنظیمات (پیش‌فرض = AppConfig).
   List<String> _mainCategories = List.of(productCategories);
   String? _pickedPath; // عکس اصلی جدید (هنوز آپلود نشده)
   String? _pickedDetailPath; // عکس صفحه توضیحات جدید (هنوز آپلود نشده)

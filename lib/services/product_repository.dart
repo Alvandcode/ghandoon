@@ -92,6 +92,34 @@ class ProductRepository {
     }
   }
 
+  /// حذف همه محصولات یک شاخه (وقتی مدیر شاخه را حذف می‌کند).
+  /// علاوه بر نام دقیق، نام‌های قدیمیِ نگاشت‌شده به این شاخه هم پاک می‌شوند
+  /// تا محصول یتیم نماند. برمی‌گرداند چند محصول حذف شد (آفلاین = ۰).
+  Future<int> deleteProductsByCategory(String category) async {
+    final target = category.trim();
+    if (target.isEmpty) return 0;
+    final names = <String>{target};
+    legacyCategoryToMain.forEach((legacy, main) {
+      if (main == target) names.add(legacy);
+    });
+    final client = SupabaseService.clientOrNull();
+    if (client == null) return 0;
+    var removed = 0;
+    for (final name in names) {
+      try {
+        final rows = await client
+            .from('products')
+            .delete()
+            .eq('category', name)
+            .select('id');
+        removed += (rows as List<dynamic>).length;
+      } catch (_) {
+        // خطای شبکه/RLS روی یک نام — ادامه با بقیه
+      }
+    }
+    return removed;
+  }
+
   /// ویرایش قیمت (تومان). نامعتبر (<=0) بدون تماس با سرور false می‌دهد.
   Future<bool> updatePrice(String id, int price) async {
     if (price <= 0) return false;
@@ -107,7 +135,7 @@ class ProductRepository {
 
   /// ساخت محصول جدید (فقط آنلاین؛ آفلاین null).
   /// نامعتبر بودن ورودی قبل از تماس با سرور چک می‌شود.
-  /// [allowedCategories] چهار شاخه اصلی تنظیمات مدیر (خالی = پیش‌فرض).
+  /// [allowedCategories] شاخه‌های تنظیمات مدیر (خالی = پیش‌فرض).
   Future<Product?> createProduct({
     required String title,
     required String category,

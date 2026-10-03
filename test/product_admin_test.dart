@@ -243,17 +243,25 @@ void main() {
           ['کیک', 'دسر']);
     });
 
-    test('sanitize همیشه دقیقاً ۴ مورد معتبر می‌دهد', () {
-      expect(SettingsService.sanitizeMainCategories([]).length, 4);
-      expect(SettingsService.sanitizeMainCategories(['', '  ', 'کیک']).length,
-          4);
-      final dups =
-          SettingsService.sanitizeMainCategories(['کیک', 'کیک', 'دسر']);
-      expect(dups.take(2), ['کیک', 'دسر']);
-      expect(dups.length, 4);
-      final tooMany = SettingsService.sanitizeMainCategories(
+    test('sanitize داینامیک: ۱ تا ۸ شاخه، خالی → پیش‌فرض', () {
+      // ورودی کاملاً خالی → پیش‌فرض (فروشگاه بی‌شاخه نمی‌ماند)
+      expect(SettingsService.sanitizeMainCategories([]),
+          ['دسر', 'شیرینی', 'کیک', 'شکلات']);
+      expect(SettingsService.sanitizeMainCategories(['', '   ']),
+          ['دسر', 'شیرینی', 'کیک', 'شکلات']);
+      // خالی‌ها و تکراری‌ها حذف، تعداد دلخواه حفظ می‌شود
+      expect(SettingsService.sanitizeMainCategories(['', '  ', 'کیک']),
+          ['کیک']);
+      expect(SettingsService.sanitizeMainCategories(['کیک', 'کیک', 'دسر']),
+          ['کیک', 'دسر']);
+      expect(
+          SettingsService.sanitizeMainCategories(['الف', 'ب', 'پ', 'ت', 'ث']),
           ['الف', 'ب', 'پ', 'ت', 'ث']);
-      expect(tooMany, ['الف', 'ب', 'پ', 'ت']);
+      // سقف ۸
+      final many = SettingsService.sanitizeMainCategories(
+          ['۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹', '۱۰']);
+      expect(many.length, SettingsService.maxMainCategories);
+      expect(many.first, '۱');
     });
 
     test('save/load آفلاین روی SharedPreferences کار می‌کند', () async {

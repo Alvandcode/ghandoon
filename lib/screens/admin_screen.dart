@@ -14,6 +14,7 @@ import '../services/product_repository.dart';
 import '../services/supabase_service.dart';
 import '../data/demo_products.dart';
 import '../utils/format.dart';
+import '../utils/product_validate.dart';
 import '../widgets/gradient_app_bar.dart';
 import '../widgets/safe_scaffold.dart';
 import 'chat_screen.dart';
@@ -40,9 +41,24 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   final _owner = TextEditingController();
   final _zarin = TextEditingController();
   final _price = TextEditingController();
-  /// چهار فیلد شاخه اصلی سفارش (قابل ویرایش مدیر).
-  final List<TextEditingController> _catCtl =
-      List.generate(4, (_) => TextEditingController());
+  /// فیلدهای شاخه‌های اصلی سفارش (داینامیک: ساخت/ویرایش/حذف).
+  /// [_catOriginal] نام قبلی همان ردیف است تا «ویرایش نام» (انتقال محصولات)
+  /// از «حذف شاخه» (حذف محصولاتش) اشتباه گرفته نشود.
+  final List<TextEditingController> _catCtl = [];
+  final List<String> _catOriginal = [];
+  /// نام شاخه‌هایی که مدیر با ✕ حذف کرده و با «ذخیره تنظیمات» نهایی می‌شوند.
+  final List<String> _pendingBranchDeletes = [];
+  static const int _maxBranches = SettingsService.maxMainCategories;
+  static const _branchIcons = [
+    Icons.icecream_outlined,
+    Icons.bakery_dining_outlined,
+    Icons.cake_outlined,
+    Icons.cookie_outlined,
+    Icons.local_cafe_outlined,
+    Icons.card_giftcard_outlined,
+    Icons.icecream_outlined,
+    Icons.cookie_outlined,
+  ];
 
   @override
   void initState() {
@@ -89,9 +105,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       _card.text = s['card'] ?? '';
       _owner.text = s['owner'] ?? '';
       _zarin.text = s['zarin'] ?? '';
-      for (var i = 0; i < _catCtl.length && i < cats.length; i++) {
-        _catCtl[i].text = cats[i];
-      }
+      _syncCatControllers(cats);
       // لیست واقعی (حتی خالی) — تا مدیر بفهمد فروشگاه واقعا خالی است نه دمو
       _products = prods.products;
     });
@@ -99,6 +113,81 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       // ignore: unawaited_futures
       NotificationService().showNewOrder(o);
     }
+  }
+
+  /// بازسازی ردیف‌های شاخه از لیست ذخیره‌شده (بعد از load و بعد از ذخیره).
+  void _syncCatControllers(List<String> cats) {
+    for (final c in _catCtl) {
+      c.dispose();
+    }
+    _catCtl.clear();
+    _catOriginal.clear();
+    _pendingBranchDeletes.clear();
+    final safe = cats.isEmpty ? productCategories : cats;
+    for (final name in safe) {
+      _catCtl.add(TextEditingController(text: name));
+      _catOriginal.add(name);
+    }
+  }
+
+  void _addBranch() {
+    if (_catCtl.length >= _maxBranches) return;
+    setState(() {
+      _catCtl.add(TextEditingController());
+      _catOriginal.add(''); // ردیف تازه‌ساخته (ویرایش/حذف ندارد)
+    });
+  }
+
+  int _branchProductCount(String branch) {
+    if (branch.trim().isEmpty) return 0;
+    return _products
+        .where((p) => productInMainCategory(p.category, branch))
+        .length;
+  }
+
+  /// حذف ردیف شاخه (با تأیید؛ نهایی با «ذخیره تنظیمات»).
+  /// طبق انتخاب فروشگاه: محصولات آن شاخه هم برای همیشه حذف می‌شوند.
+  Future<void> _askRemoveBranch(int index) async {
+    if (_catCtl.length <= 1) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('حداقل یک شاخه باید بماند')));
+      return;
+    }
+    final name = _catCtl[index].text.trim();
+    final isNew = index < _catOriginal.length && _catOriginal[index].isEmpty;
+    final n = _branchProductCount(name);
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('حذف شاخه؟'),
+        content: Text(name.isEmpty
+            ? 'این ردیف خالی حذف شود؟'
+            : 'شاخه «$name»${n > 0 ? ' با $n محصولش' : ''} برای همیشه حذف می‌شود.\n'
+                'این کار برگشت‌پذیر نیست.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('انصراف'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حذف کن'),
+          ),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    setState(() {
+      // شاخه قبلاً ذخیره‌شده بود → در لیست حذف‌انتظاری برای ذخیره نهایی
+      if (!isNew && name.isNotEmpty && !_pendingBranchDeletes.contains(name)) {
+        _pendingBranchDeletes.add(name);
+      }
+      _catCtl[index].dispose();
+      _catCtl.removeAt(index);
+      _catOriginal.removeAt(index);
+    });
   }
 
   Future<void> _setStatus(QandOrder o, String st) async {
@@ -650,30 +739,46 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         label: const Text('تغییر رمز مدیر'),
       ),
       const SizedBox(height: 14),
-      const Text('چهار شاخه اصلی سفارش (صفحه خانه) — ذخیره برای همه اعمال می‌شود',
+      const Text('شاخه‌های سفارش (صفحه خانه) — ذخیره برای همه اعمال می‌شود',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       const SizedBox(height: 4),
-      const Text('با تغییر نام، محصولات موجود آن دسته هم به‌روز می‌شوند.',
+      const Text('نام را عوض کن = ویرایش (محصولاتش منتقل می‌شوند). با ✕ شاخه و همه محصولاتش برای همیشه حذف می‌شود.',
           style: TextStyle(fontSize: 12, color: Colors.grey)),
       const SizedBox(height: 10),
       for (var i = 0; i < _catCtl.length; i++)
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: TextField(
-            controller: _catCtl[i],
-            maxLength: 30,
-            decoration: InputDecoration(
-              labelText: 'شاخه ${i + 1}',
-              prefixIcon: Icon([
-                Icons.icecream_outlined,
-                Icons.bakery_dining_outlined,
-                Icons.cake_outlined,
-                Icons.cookie_outlined,
-              ][i]),
-              counterText: '',
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _catCtl[i],
+                  maxLength: 30,
+                  decoration: InputDecoration(
+                    labelText: 'شاخه ${i + 1}',
+                    prefixIcon:
+                        Icon(_branchIcons[i % _branchIcons.length]),
+                    counterText: '',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'حذف این شاخه + محصولاتش',
+                onPressed:
+                    _catCtl.length <= 1 ? null : () => _askRemoveBranch(i),
+                icon: Icon(Icons.delete_outline,
+                    color: _catCtl.length <= 1 ? Colors.grey : Colors.red),
+              ),
+            ],
           ),
         ),
+      OutlinedButton.icon(
+        onPressed:
+            _catCtl.length >= _maxBranches ? null : _addBranch,
+        icon: const Icon(Icons.add),
+        label: Text('افزودن شاخه (${_catCtl.length}/$_maxBranches)'),
+      ),
       const SizedBox(height: 6),
       const Text('شماره کارت و زرین‌پال — ذخیره برای همه کاربران اعمال می‌شود ✅', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       const SizedBox(height: 10),
@@ -715,22 +820,39 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         // ذخیره واقعی: اول سرور (همه کاربران می‌بینند)، بعد آینه لوکال.
         final ok = await SettingsService().save(
             card: _card.text.trim(), owner: owner, zarin: zarin);
-        // دسته‌های اصلی: نام جدید هر شاخه + cascade روی محصولات همان شاخه.
-        final oldCats = await SettingsService().loadMainCategories();
-        final newCats = <String>[];
-        for (final c in _catCtl) {
-          newCats.add(c.text.trim());
+        // شاخه‌ها: جفت (نام قبلی، نام جدید) هر ردیف تا ویرایش از حذف قاطی نشود.
+        final pairs = <List<String>>[];
+        for (var i = 0; i < _catCtl.length; i++) {
+          final oldName =
+              i < _catOriginal.length ? _catOriginal[i].trim() : '';
+          pairs.add([oldName, _catCtl[i].text.trim()]);
         }
-        final sanitized = SettingsService.sanitizeMainCategories(newCats);
+        final typed = [for (final p in pairs) p[1]];
+        if (typed.every((t) => t.isEmpty)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('حداقل یک شاخه با نام لازم است')));
+          return;
+        }
+        final sanitized = SettingsService.sanitizeMainCategories(typed);
         final catsOk = await SettingsService().saveMainCategories(sanitized);
-        // تغییر نام‌ها → به‌روزرسانی category محصولات مرتبط
         if (SupabaseService.isReady) {
-          for (var i = 0; i < oldCats.length && i < sanitized.length; i++) {
-            final oldName = oldCats[i];
-            final newName = sanitized[i];
-            if (oldName.isNotEmpty && newName.isNotEmpty && oldName != newName) {
-              await ProductRepository()
-                  .renameCategoryEverywhere(oldName, newName);
+          final repo = ProductRepository();
+          // ویرایش نام → انتقال محصولات به نام جدید
+          for (final p in pairs) {
+            final oldName = p[0];
+            final newName = p[1];
+            if (oldName.isNotEmpty &&
+                newName.isNotEmpty &&
+                oldName != newName &&
+                sanitized.contains(newName)) {
+              await repo.renameCategoryEverywhere(oldName, newName);
+            }
+          }
+          // حذف شاخه → حذف همه محصولاتش (فقط اگر نامش واقعاً رفته باشد)
+          for (final deleted in _pendingBranchDeletes) {
+            if (!sanitized.contains(deleted)) {
+              await repo.deleteProductsByCategory(deleted);
             }
           }
         }

@@ -69,7 +69,11 @@ class SettingsService {
     };
   }
 
-  /// چهار شاخه اصلی سفارش (همیشه دقیقاً ۴ مورد معتبر).
+  /// سقف تعداد شاخه‌ها (صفحه خانه ۲ ستونه است؛ بیشتر از این شلوغ می‌شود).
+  static const int maxMainCategories = 8;
+
+  /// شاخه‌های اصلی سفارش (داینامیک: ۱ تا [maxMainCategories] مورد معتبر).
+  /// هیچ‌وقت خالی برنمی‌گردد؛ ورودی کاملاً خالی → پیش‌فرض.
   Future<List<String>> loadMainCategories() async {
     final m = await load();
     return sanitizeMainCategories(decodeMainCategories(m['mainCategories'] ?? ''));
@@ -86,7 +90,8 @@ class SettingsService {
     return const [];
   }
 
-  /// دقیقاً ۴ دسته: خالی‌ها حذف، تکراری‌ها حذف، کمبود با پیش‌فرض پر می‌شود.
+  /// خالی‌ها و تکراری‌ها حذف، سقف [maxMainCategories]؛
+  /// ورودی کاملاً خالی → لیست پیش‌فرض (فروشگاه هیچ‌وقت بی‌شاخه نمی‌ماند).
   static List<String> sanitizeMainCategories(List<String> input) {
     final out = <String>[];
     for (final raw in input) {
@@ -94,13 +99,10 @@ class SettingsService {
       if (t.isEmpty) continue;
       if (out.contains(t)) continue;
       out.add(t);
-      if (out.length == 4) break;
+      if (out.length == maxMainCategories) break;
     }
-    for (final d in AppConfig.defaultMainCategories) {
-      if (out.length == 4) break;
-      if (!out.contains(d)) out.add(d);
-    }
-    return out.take(4).toList();
+    if (out.isEmpty) return List.of(AppConfig.defaultMainCategories);
+    return out;
   }
 
   /// نوشتن واقعی دسته‌ها: اول سرور، بعد آینه لوکال.
