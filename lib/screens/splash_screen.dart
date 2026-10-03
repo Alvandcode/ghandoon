@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../services/auth_service.dart';
+import '../widgets/character_blink.dart';
 import '../widgets/checker_strip.dart';
 import '../utils/responsive.dart';
 import 'auth_screen.dart';
@@ -20,7 +21,8 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _go() async {
-    await Future.delayed(const Duration(milliseconds: 1400));
+    // مکث بیشتر تا ورود کاراکتر (۷۵۰ms) + اولین چشمک دیده شود.
+    await Future.delayed(const Duration(milliseconds: 2300));
     final user = await AuthService().currentUser();
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -45,7 +47,8 @@ class _SplashScreenState extends State<SplashScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _logo(logoSize),
+                  // کاراکتر قند: از پایین می‌پرد بالا توی دایره، بعد چشمک می‌زند.
+                  BlinkingCharacter(size: logoSize),
                   const SizedBox(height: 16),
                   const Text('قندون',
                       style: TextStyle(
@@ -71,28 +74,4 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  Widget _logo(double size) {
-    return ClipOval(
-      // کاراکتر متحرک اسپلش (چشمک)؛ اگر نباشد همان لوگوی ثابت قبلی.
-      child: Image.asset('assets/logo/splash_wink.webp',
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => Image.asset('assets/logo/splash.png',
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                  width: size,
-                  height: size,
-                  color: Colors.white,
-                  child: const Center(
-                      child: Text('قند',
-                          style: TextStyle(
-                              fontSize: 42,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFFD62828))))))),
-    );
-  }
 }
