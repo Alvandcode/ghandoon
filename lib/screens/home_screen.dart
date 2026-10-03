@@ -7,7 +7,6 @@ import '../services/product_repository.dart';
 import '../services/push_service.dart';
 import '../services/settings_service.dart';
 import '../utils/responsive.dart';
-import '../widgets/character_blink.dart';
 import '../widgets/safe_scaffold.dart';
 import 'cart_screen.dart';
 import 'category_products_screen.dart';
@@ -203,10 +202,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontSize: 24,
                     fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
-            // کاراکتر دایره‌ای قندون — چشمک‌زن (متحرک اگر ساخته شده باشد، وگرنه ثابت).
+            // لوگوی دایره‌ای قندون — اندازه با عرض صفحه تنظیم می‌شود.
             Builder(builder: (context) {
               final s = Responsive.badge(width, min: 120, max: 190, ratio: 0.46);
-              return BlinkingCharacter(size: s);
+              return ClipOval(
+                child: Image.asset(
+                  'assets/images/chef.png',
+                  height: s,
+                  width: s,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: s,
+                    width: s,
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
+                    child: Center(
+                      child: Text('👩‍🍳',
+                          style: TextStyle(fontSize: s * 0.45)),
+                    ),
+                  ),
+                ),
+              );
             }),
           ]),
         ),

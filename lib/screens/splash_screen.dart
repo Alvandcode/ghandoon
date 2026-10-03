@@ -73,20 +73,26 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Widget _logo(double size) {
     return ClipOval(
-      child: Image.asset('assets/logo/splash.png',
+      // کاراکتر متحرک اسپلش (چشمک)؛ اگر نباشد همان لوگوی ثابت قبلی.
+      child: Image.asset('assets/logo/splash_wink.webp',
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => Image.asset('assets/logo/splash.png',
               width: size,
               height: size,
-              color: Colors.white,
-              child: const Center(
-                  child: Text('قند',
-                      style: TextStyle(
-                          fontSize: 42,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFD62828)))))),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                  width: size,
+                  height: size,
+                  color: Colors.white,
+                  child: const Center(
+                      child: Text('قند',
+                          style: TextStyle(
+                              fontSize: 42,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFD62828))))))),
     );
   }
 }
