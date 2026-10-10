@@ -48,6 +48,7 @@ class OrderService {
   static const updateNotFound = 'not_found';
   static const updateBadStatus = 'bad_status';
   static const updateBadPrice = 'bad_price';
+  static const updateBadField = 'bad_field';
   static const cancelForbidden = 'forbidden';
   static const cancelNotAllowed = 'not_allowed';
 
@@ -100,6 +101,89 @@ class OrderService {
       return cancelNotAllowed;
     }
     return updateStatus(id, OrderStatuses.cancelled);
+  }
+
+  /// ویرایش کامل سفارش توسط مدیر (متن‌ها + اعداد).
+  /// همه فیلدها اعتبارسنجی می‌شوند؛ نامعتبر → [updateBadField]/[updateBadPrice].
+  Future<String> updateDetails(
+    String id, {
+    String? fullName,
+    String? phone,
+    String? address,
+    String? deliveryDate,
+    String? note,
+    int? qty,
+    int? persons,
+    int? totalPrice,
+    int? deliveryFee,
+    String? fulfillment,
+    String? itemsSummary,
+    String? cakeOptions,
+  }) async {
+    if (fullName != null && fullName.trim().length < 3) return updateBadField;
+    if (phone != null) {
+      final digits = phone.trim().replaceAll(RegExp(r'[,\s٬٫_]'), '');
+      const fa = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+      const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+      var n = digits;
+      for (var i = 0; i < 10; i++) {
+        n = n.replaceAll(fa[i], '$i').replaceAll(ar[i], '$i');
+      }
+      if (!RegExp(r'^09\d{9}$').hasMatch(n)) return updateBadField;
+    }
+    if (address != null &&
+        address.trim() != 'تحویل حضوری' &&
+        address.trim().length < 10) {
+      return updateBadField;
+    }
+    if (deliveryDate != null && deliveryDate.trim().isEmpty) {
+      return updateBadField;
+    }
+    if (qty != null && (qty < 1 || qty > 50)) return updateBadField;
+    if (persons != null && (persons < 1 || persons > 200)) {
+      return updateBadField;
+    }
+    if (totalPrice != null && totalPrice < 0) return updateBadPrice;
+    if (deliveryFee != null && deliveryFee < 0) return updateBadPrice;
+    if (fulfillment != null &&
+        fulfillment != Fulfillment.pickup &&
+        fulfillment != Fulfillment.delivery) {
+      return updateBadField;
+    }
+
+    final patch = <String, dynamic>{};
+    if (fullName != null) patch['full_name'] = fullName.trim();
+    if (phone != null) patch['phone'] = phone.trim();
+    if (address != null) patch['address'] = address.trim();
+    if (deliveryDate != null) patch['delivery_date'] = deliveryDate.trim();
+    if (note != null) patch['note'] = note.trim();
+    if (qty != null) patch['qty'] = qty;
+    if (persons != null) patch['persons'] = persons;
+    if (totalPrice != null) patch['total_price'] = totalPrice;
+    if (deliveryFee != null) patch['delivery_fee'] = deliveryFee;
+    if (fulfillment != null) patch['fulfillment'] = fulfillment;
+    if (itemsSummary != null) patch['items_summary'] = itemsSummary.trim();
+    if (cakeOptions != null) patch['cake_options'] = cakeOptions.trim();
+    if (patch.isEmpty) return updateBadField;
+
+    final client = SupabaseService.clientOrNull();
+    if (client != null) {
+      try {
+        final rows = await client
+            .from('orders')
+            .update(patch)
+            .eq('id', id)
+            .select();
+        if ((rows as List).isEmpty) return updateNotFound;
+        final fresh =
+            QandOrderMapper.fromMap(Map<String, dynamic>.from(rows.first as Map));
+        await _localUpsert(fresh);
+        return updateOk;
+      } catch (_) {
+        // ادامه با لوکال
+      }
+    }
+    return _localUpdateDetails(id, patch);
   }
 
   /// حذف کامل (فقط مدیر — صداکننده باید isAdmin را چک کرده باشد).
@@ -251,6 +335,45 @@ class OrderService {
     if (!valid.contains(status)) return updateBadStatus;
     list[i] = list[i].copyWith(
         status: status, receiptPath: receiptPath, totalPrice: totalPrice);
+    await p.setStringList(_k, list.map(_encode).toList());
+    return updateOk;
+  }
+
+  Future<String> _localUpdateDetails(
+      String id, Map<String, dynamic> patch) async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getStringList(_k) ?? [];
+    final list = <QandOrder>[];
+    for (final s in raw) {
+      try {
+        list.add(_decode(s));
+      } catch (_) {}
+    }
+    final i = list.indexWhere((e) => e.id == id);
+    if (i == -1) return updateNotFound;
+    final o = list[i];
+    list[i] = o.copyWith(
+      fullName: patch.containsKey('full_name') ? '${patch['full_name']}' : null,
+      phone: patch.containsKey('phone') ? '${patch['phone']}' : null,
+      address: patch.containsKey('address') ? '${patch['address']}' : null,
+      deliveryDate: patch.containsKey('delivery_date')
+          ? '${patch['delivery_date']}'
+          : null,
+      note: patch.containsKey('note') ? '${patch['note']}' : null,
+      qty: patch['qty'] as int?,
+      persons: patch['persons'] as int?,
+      totalPrice: patch['total_price'] as int?,
+      deliveryFee: patch['delivery_fee'] as int?,
+      fulfillment: patch.containsKey('fulfillment')
+          ? '${patch['fulfillment']}'
+          : null,
+      itemsSummary: patch.containsKey('items_summary')
+          ? '${patch['items_summary']}'
+          : null,
+      cakeOptions: patch.containsKey('cake_options')
+          ? '${patch['cake_options']}'
+          : null,
+    );
     await p.setStringList(_k, list.map(_encode).toList());
     return updateOk;
   }

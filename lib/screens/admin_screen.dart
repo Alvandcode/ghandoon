@@ -17,6 +17,7 @@ import '../utils/format.dart';
 import '../utils/product_validate.dart';
 import '../widgets/gradient_app_bar.dart';
 import '../widgets/safe_scaffold.dart';
+import '../widgets/branch_image_picker.dart';
 import 'chat_screen.dart';
 import 'product_edit_screen.dart';
 
@@ -46,6 +47,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   /// از «حذف شاخه» (حذف محصولاتش) اشتباه گرفته نشود.
   final List<TextEditingController> _catCtl = [];
   final List<String> _catOriginal = [];
+  /// عکس سفارشی هر ردیف شاخه (URL گالری یا null = آیکون پیش‌فرض).
+  /// موازی با _catCtl نگه داشته می‌شود تا با حذف/افزودن ردیف جابه‌جا نشود؛
+  /// حذف ردیف، عکسش را هم می‌برد و ویرایش نام، عکس را منتقل می‌کند.
+  final List<String?> _branchImgByRow = [];
   /// نام شاخه‌هایی که مدیر با ✕ حذف کرده و با «ذخیره تنظیمات» نهایی می‌شوند.
   final List<String> _pendingBranchDeletes = [];
   static const int _maxBranches = SettingsService.maxMainCategories;
@@ -85,6 +90,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     final orders = await OrderService().all(isAdmin: admin);
     final s = await SettingsService().load();
     final cats = await SettingsService().loadMainCategories();
+    final branchImgs = await SettingsService().loadBranchImages();
     final prods = await ProductRepository().loadActiveWithSource();
     final usingDefault = admin ? await AuthService().isUsingDefaultAdminPassword() : false;
     final repoMsgs = admin ? await ChatService().allForAdmin() : <ChatMessage>[];
@@ -105,7 +111,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       _card.text = s['card'] ?? '';
       _owner.text = s['owner'] ?? '';
       _zarin.text = s['zarin'] ?? '';
-      _syncCatControllers(cats);
+      _syncCatControllers(cats, branchImgs);
       // لیست واقعی (حتی خالی) — تا مدیر بفهمد فروشگاه واقعا خالی است نه دمو
       _products = prods.products;
     });
@@ -116,17 +122,21 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   }
 
   /// بازسازی ردیف‌های شاخه از لیست ذخیره‌شده (بعد از load و بعد از ذخیره).
-  void _syncCatControllers(List<String> cats) {
+  void _syncCatControllers(List<String> cats,
+      [Map<String, String>? branchImgs]) {
     for (final c in _catCtl) {
       c.dispose();
     }
     _catCtl.clear();
     _catOriginal.clear();
     _pendingBranchDeletes.clear();
+    _branchImgByRow.clear();
     final safe = cats.isEmpty ? productCategories : cats;
     for (final name in safe) {
       _catCtl.add(TextEditingController(text: name));
       _catOriginal.add(name);
+      final img = (branchImgs?[name] ?? '').trim();
+      _branchImgByRow.add(img.isEmpty ? null : img);
     }
   }
 
@@ -135,6 +145,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     setState(() {
       _catCtl.add(TextEditingController());
       _catOriginal.add(''); // ردیف تازه‌ساخته (ویرایش/حذف ندارد)
+      _branchImgByRow.add(null);
     });
   }
 
@@ -187,6 +198,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       _catCtl[index].dispose();
       _catCtl.removeAt(index);
       _catOriginal.removeAt(index);
+      // عکس ردیف هم با خودش می‌رود (آیکون یتیم نمی‌ماند).
+      if (index < _branchImgByRow.length) {
+        _branchImgByRow.removeAt(index);
+      }
     });
   }
 
@@ -238,6 +253,121 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(ok ? 'حذف شد' : 'حذف ناموفق بود')));
     if (ok) await _load();
+  }
+
+  /// ویرایش کامل سفارش توسط مدیر: همه متن‌ها + همه اعداد.
+  Future<void> _askEditOrder(QandOrder o) async {
+    final name = TextEditingController(text: o.fullName);
+    final phone = TextEditingController(text: o.phone);
+    final address = TextEditingController(text: o.address);
+    final date = TextEditingController(text: o.deliveryDate);
+    final note = TextEditingController(text: o.note);
+    final qty = TextEditingController(text: '${o.qty}');
+    final persons = TextEditingController(text: '${o.persons}');
+    final price = TextEditingController(text: '${o.totalPrice}');
+    final fee = TextEditingController(text: '${o.deliveryFee}');
+    final items = TextEditingController(text: o.itemsSummary);
+    final cake = TextEditingController(text: o.cakeOptions);
+    var fulfillment = o.fulfillment;
+    try {
+      final save = await showDialog<bool>(
+        context: context,
+        builder: (_) => StatefulBuilder(
+          builder: (ctx, setD) => AlertDialog(
+            title: Text('ویرایش سفارش ${o.displayCode} ✏️'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(controller: name, decoration: const InputDecoration(labelText: 'نام و نام خانوادگی *')),
+                  TextField(controller: phone, decoration: const InputDecoration(labelText: 'موبایل (09...) *'), keyboardType: TextInputType.phone, textDirection: TextDirection.ltr),
+                  TextField(controller: address, decoration: const InputDecoration(labelText: 'آدرس دقیق *'), maxLines: 2),
+                  TextField(controller: date, decoration: const InputDecoration(labelText: 'تاریخ تحویل *', hintText: '1405/06/20')),
+                  Row(children: [
+                    Expanded(child: TextField(controller: qty, decoration: const InputDecoration(labelText: 'تعداد *'), keyboardType: TextInputType.number)),
+                    const SizedBox(width: 8),
+                    Expanded(child: TextField(controller: persons, decoration: const InputDecoration(labelText: 'نفرات *'), keyboardType: TextInputType.number)),
+                  ]),
+                  Row(children: [
+                    Expanded(child: TextField(controller: price, decoration: const InputDecoration(labelText: 'مبلغ (تومان) *'), keyboardType: TextInputType.number)),
+                    const SizedBox(width: 8),
+                    Expanded(child: TextField(controller: fee, decoration: const InputDecoration(labelText: 'هزینه پیک'), keyboardType: TextInputType.number)),
+                  ]),
+                  DropdownButtonFormField<String>(
+                    // ignore: deprecated_member_use
+                    value: fulfillment,
+                    decoration: const InputDecoration(labelText: 'نحوه تحویل'),
+                    items: const [
+                      DropdownMenuItem(value: Fulfillment.delivery, child: Text('ارسال با پیک 🛵')),
+                      DropdownMenuItem(value: Fulfillment.pickup, child: Text('تحویل حضوری 🏪')),
+                    ],
+                    onChanged: (v) => setD(() => fulfillment = v ?? fulfillment),
+                  ),
+                  TextField(controller: note, decoration: const InputDecoration(labelText: 'توضیح'), maxLines: 2),
+                  TextField(controller: items, decoration: const InputDecoration(labelText: 'شرح اقلام'), maxLines: 2),
+                  TextField(controller: cake, decoration: const InputDecoration(labelText: 'مشخصات کیک 🎂'), maxLines: 2),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('لغو')),
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('ذخیره')),
+            ],
+          ),
+        ),
+      );
+      if (save != true || !mounted) return;
+      final q = int.tryParse(normalizeDigits(qty.text.trim()));
+      final pe = int.tryParse(normalizeDigits(persons.text.trim()));
+      final t = int.tryParse(normalizeDigits(price.text.trim()));
+      final f = int.tryParse(normalizeDigits(fee.text.trim()));
+      if (q == null || pe == null || t == null || f == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('اعداد نامعتبرند؛ بررسی کن')));
+        return;
+      }
+      final res = await OrderService().updateDetails(
+        o.id,
+        fullName: name.text,
+        phone: normalizeDigits(phone.text.trim()),
+        address: address.text,
+        deliveryDate: date.text,
+        note: note.text,
+        qty: q,
+        persons: pe,
+        totalPrice: t,
+        deliveryFee: f,
+        fulfillment: fulfillment,
+        itemsSummary: items.text,
+        cakeOptions: cake.text,
+      );
+      if (!mounted) return;
+      String msg;
+      switch (res) {
+        case OrderService.updateOk:
+          msg = 'سفارش به‌روز شد ✅';
+        case OrderService.updateNotFound:
+          msg = 'سفارش پیدا نشد';
+        case OrderService.updateBadPrice:
+          msg = 'مبلغ/هزینه پیک نامعتبر است';
+        default:
+          msg = 'فیلدی نامعتبر است؛ ذخیره نشد (نام ≥۳، موبایل 09...، آدرس ≥۱۰)';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      if (res == OrderService.updateOk) await _load();
+    } finally {
+      name.dispose();
+      phone.dispose();
+      address.dispose();
+      date.dispose();
+      note.dispose();
+      qty.dispose();
+      persons.dispose();
+      price.dispose();
+      fee.dispose();
+      items.dispose();
+      cake.dispose();
+    }
   }
 
   Future<int?> _askPrice(int current) async {
@@ -327,6 +457,15 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
               _stBtn(o, 'آماده', OrderStatuses.ready),
               _stBtn(o, 'تحویل', OrderStatuses.delivered),
               _stBtn(o, 'لغو', OrderStatuses.cancelled),
+              ElevatedButton(
+                onPressed: () => _askEditOrder(o),
+                style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(0, 36),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10)),
+                child: const Text('ویرایش ✏️',
+                    style: TextStyle(fontSize: 12)),
+              ),
               TextButton(
                 onPressed: () => _delete(o),
                 child: const Text('حذف',
@@ -742,33 +881,56 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       const Text('شاخه‌های سفارش (صفحه خانه) — ذخیره برای همه اعمال می‌شود',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       const SizedBox(height: 4),
-      const Text('نام را عوض کن = ویرایش (محصولاتش منتقل می‌شوند). با ✕ شاخه و همه محصولاتش برای همیشه حذف می‌شود.',
+      const Text('نام را عوض کن = ویرایش (محصولاتش منتقل می‌شوند). با ✕ شاخه، محصولات و عکسش برای همیشه حذف می‌شود. با «عکس 🖼️» می‌توانی برای هر شاخه عکس گالری بگذاری.',
           style: TextStyle(fontSize: 12, color: Colors.grey)),
       const SizedBox(height: 10),
       for (var i = 0; i < _catCtl.length; i++)
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _catCtl[i],
-                  maxLength: 30,
-                  decoration: InputDecoration(
-                    labelText: 'شاخه ${i + 1}',
-                    prefixIcon:
-                        Icon(_branchIcons[i % _branchIcons.length]),
-                    counterText: '',
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      // هویت ردیف با خود کنترلر گره خورده تا با حذف یک شاخه،
+                      // متن و فوکس ردیف‌های دیگر جابه‌جا نشود.
+                      key: ValueKey(_catCtl[i]),
+                      controller: _catCtl[i],
+                      maxLength: 30,
+                      decoration: InputDecoration(
+                        labelText: 'شاخه ${i + 1}',
+                        prefixIcon:
+                            Icon(_branchIcons[i % _branchIcons.length]),
+                        counterText: '',
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'حذف این شاخه + محصولاتش',
+                    onPressed:
+                        _catCtl.length <= 1 ? null : () => _askRemoveBranch(i),
+                    icon: Icon(Icons.delete_outline,
+                        color: _catCtl.length <= 1 ? Colors.grey : Colors.red),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'حذف این شاخه + محصولاتش',
-                onPressed:
-                    _catCtl.length <= 1 ? null : () => _askRemoveBranch(i),
-                icon: Icon(Icons.delete_outline,
-                    color: _catCtl.length <= 1 ? Colors.grey : Colors.red),
+              // عکس سفارشی شاخه (گالری) — خالی = همان آیکون پیش‌فرض.
+              // مقدار کنترل‌شده از لیست والد خوانده می‌شود (نه state داخلی)،
+              // پس حذف یک شاخه عکس بقیه را جابه‌جا نمی‌کند.
+              BranchImagePicker(
+                imageUrl: i < _branchImgByRow.length
+                    ? _branchImgByRow[i]
+                    : null,
+                fallbackIcon:
+                    _branchIcons[i % _branchIcons.length],
+                onChanged: (url) => setState(() {
+                  if (i < _branchImgByRow.length) {
+                    _branchImgByRow[i] = url;
+                  }
+                }),
               ),
             ],
           ),
@@ -836,6 +998,22 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         }
         final sanitized = SettingsService.sanitizeMainCategories(typed);
         final catsOk = await SettingsService().saveMainCategories(sanitized);
+        // عکس شاخه‌ها با نام نهایی ذخیره می‌شود (نه ایندکس)؛
+        // عکس شاخه حذف‌شده چون ردیفی ندارد خودبه‌خود می‌رود.
+        final imgMap = <String, String>{};
+        for (var i = 0; i < _catCtl.length; i++) {
+          final title = _catCtl[i].text.trim();
+          final img = i < _branchImgByRow.length
+              ? (_branchImgByRow[i] ?? '').trim()
+              : '';
+          if (title.isNotEmpty &&
+              img.isNotEmpty &&
+              sanitized.contains(title)) {
+            imgMap[title] = img;
+          }
+        }
+        final imgsOk = await SettingsService()
+            .saveBranchImages(imgMap, validTitles: sanitized);
         if (SupabaseService.isReady) {
           final repo = ProductRepository();
           // ویرایش نام → انتقال محصولات به نام جدید
@@ -858,7 +1036,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         }
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(ok || catsOk
+          content: Text(ok || catsOk || imgsOk
               ? 'برای همه کاربران ذخیره شد ✅'
               : 'فقط روی همین گوشی ذخیره شد (سرور در دسترس نیست یا دسترسی‌اش باز نشده — دستور دسترسی‌ها را در سوپابیس اجرا کن)'),
         ));

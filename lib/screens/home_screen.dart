@@ -28,6 +28,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isAdmin = false;
   // شاخه‌های اصلی سفارش — از تنظیمات مدیر (ساخت/ویرایش/حذف)
   List<String> _mainCategories = List.of(AppConfig.defaultMainCategories);
+  // عکس سفارشی هر شاخه (نام → URL) — کلید نام است نه ایندکس تا حذف
+  // یک شاخه عکس بقیه را جابه‌جا نکند.
+  Map<String, String> _branchImages = {};
   // «سوپابیس وصل است ولی فروشگاه خالی» — جدا از حالت آفلاین
   bool _supabaseEmpty = false;
   int _cartCount = 0;
@@ -60,8 +63,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadMainCategories() async {
     final cats = await SettingsService().loadMainCategories();
+    final imgs = await SettingsService().loadBranchImages();
     if (!mounted) return;
-    setState(() => _mainCategories = cats);
+    setState(() {
+      _mainCategories = cats;
+      _branchImages = imgs;
+    });
   }
 
   Future<void> _refreshCartCount() async {
@@ -305,7 +312,12 @@ class _HomeScreenState extends State<HomeScreen> {
       Icons.cookie_outlined,
     ];
     final emojis = ['🍮', '🥐', '🎂', '🍫'];
+    // آیکون سفارشی با نام پیدا می‌شود (نه ایندکس)؛ fallback هم از هش نام
+    // است تا حذف یک شاخه، آیکون بقیه را جابه‌جا نکند (باگ قبلی همین بود).
+    final customImg = (_branchImages[title] ?? '').trim();
+    final stable = title.hashCode.abs();
     return Material(
+      key: ValueKey('branch_$title'),
       color: QandTheme.cream,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
@@ -332,9 +344,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   shape: BoxShape.circle,
                   border: Border.all(color: QandTheme.red, width: 2),
                 ),
-                child: Center(
-                  child: Text(emojis[index % emojis.length],
-                      style: const TextStyle(fontSize: 26)),
+                child: ClipOval(
+                  child: customImg.isNotEmpty
+                      ? Image.network(customImg,
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Center(
+                                child: Text(emojis[stable % emojis.length],
+                                    style: const TextStyle(fontSize: 26)),
+                              ))
+                      : Center(
+                          child: Text(emojis[stable % emojis.length],
+                              style: const TextStyle(fontSize: 26)),
+                        ),
                 ),
               ),
               const SizedBox(height: 6),
@@ -347,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     fontWeight: FontWeight.bold, fontSize: 13),
               ),
               const SizedBox(height: 2),
-              Icon(icons[index % icons.length],
+              Icon(icons[stable % icons.length],
                   size: 16, color: QandTheme.red),
             ],
           ),
