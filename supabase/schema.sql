@@ -92,6 +92,8 @@ alter table profiles add column if not exists fcm_token text default '';
 alter table app_settings add column if not exists main_categories text default '';
 -- عکس سفارشی هر شاخه (JSON object مثل {"دسر":"https://..."}؛ کلید نام شاخه است نه ایندکس)
 alter table app_settings add column if not exists branch_images text default '{}';
+-- متن‌های قابل‌ویرایش صفحه‌ها (JSON object مثل {"home.headline":"..."}؛ کلیدها ثابت‌اند)
+alter table app_settings add column if not exists app_texts text default '{}';
 -- عکس صفحه توضیحات محصول
 alter table products add column if not exists detail_image_url text;
 -- دسته دیگر به ۴ مقدار قدیمی قفل نیست؛ عنوان از تنظیمات مدیر می‌آید.

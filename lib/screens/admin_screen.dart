@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../theme/qand_theme.dart';
 import '../models/order.dart';
 import '../models/product.dart';
+import '../models/app_texts.dart';
+import '../services/app_texts_service.dart';
 import '../models/chat_message.dart';
 import '../services/auth_service.dart';
 import '../services/chat_service.dart';
@@ -68,7 +70,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 4, vsync: this);
+    _tab = TabController(length: 5, vsync: this);
     _load();
   }
 
@@ -82,6 +84,10 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
     for (final c in _catCtl) {
       c.dispose();
     }
+    for (final c in _textCtl.values) {
+      c.dispose();
+    }
+    _textCtl.clear();
     super.dispose();
   }
 
@@ -412,11 +418,18 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             Tab(text: 'سفارش‌ها'),
             Tab(text: 'پیام‌ها'),
             Tab(text: 'محصولات'),
+            Tab(text: 'متن‌ها'),
             Tab(text: 'تنظیمات'),
           ],
         ),
       ),
-      body: TabBarView(controller: _tab, children: [_ordersTab(), _messagesTab(), _productsTab(), _settingsTab()]),
+      body: TabBarView(controller: _tab, children: [
+        _ordersTab(),
+        _messagesTab(),
+        _productsTab(),
+        _textsTab(),
+        _settingsTab()
+      ]),
     );
   }
 
@@ -854,6 +867,131 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
       newCtl.dispose();
       confirmCtl.dispose();
     }
+  }
+
+  // ---------------- تب متن‌ها ----------------
+  // هر متن قابل ویرایش یک فیلد است؛ ذخیره‌ی همه با یک دکمه.
+  // متن‌های «الزامی» خالی ذخیره نمی‌شوند (پیش‌فرضشان می‌ماند) تا دکمه/عنوان گم نشود.
+  Map<String, TextEditingController> _textCtl = {};
+  bool _textsLoaded = false;
+
+  Future<void> _ensureTextControllers() async {
+    if (_textsLoaded) return;
+    final saved = await AppTextsService().load();
+    if (!mounted) return;
+    final notifier = AppTexts.of(context).texts;
+    setState(() {
+      _textCtl = {
+        for (final e in appTextEntries)
+          e.key: TextEditingController(text: saved[e.key] ?? notifier.t(e.key)),
+      };
+      _textsLoaded = true;
+    });
+  }
+
+  Widget _textsTab() {
+    _ensureTextControllers();
+    if (!_textsLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: QandTheme.cream, borderRadius: BorderRadius.circular(16)),
+          child: const Text(
+            'متن‌های صفحه خانه و کیک تولد سفارشی را اینجا عوض کن. خالی گذاشتن = برگشت به متن پیش‌فرض.',
+            style: TextStyle(fontSize: 12),
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: bottomSafePadding(context, base: 12),
+            children: [
+              for (final g in appTextGroups) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 14, bottom: 6),
+                  child: Text(g,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+                for (final e in appTextEntries.where((e) => e.group == g))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: _textCtl[e.key],
+                      maxLines: 3,
+                      minLines: 1,
+                      decoration: InputDecoration(
+                        labelText: e.label +
+                            (e.required ? ' *' : ''),
+                        helperText: e.required
+                            ? 'خالی نمی‌شود؛ اگر خالی بگذاری متن پیش‌فرض می‌ماند'
+                            : null,
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ),
+              ],
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ElevatedButton(
+                  onPressed: _saveTexts,
+                  child: const Text('ذخیره متن‌ها'),
+                ),
+              ),
+              TextButton(
+                onPressed: _resetTexts,
+                child: const Text('بازگردانی همه به متن پیش‌فرض'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _saveTexts() async {
+    final typed = <String, String>{
+      for (final e in appTextEntries) e.key: _textCtl[e.key]?.text ?? '',
+    };
+    final ok = await AppTextsService().save(typed);
+    if (!mounted) return;
+    // بلافاصله در کل اپ اعمال شود (بدون ری‌استارت)
+    AppTexts.of(context).texts.replaceAll(typed);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'متن‌ها برای همه کاربران ذخیره شد ✅'
+          : 'فقط روی همین گوشی ذخیره شد (سرور در دسترس نیست)'),
+    ));
+  }
+
+  Future<void> _resetTexts() async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('بازگردانی متن‌ها؟'),
+        content: const Text('همه متن‌ها به حالت پیش‌فرض برگردند؟'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('انصراف')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('بازگردان')),
+        ],
+      ),
+    );
+    if (yes != true || !mounted) return;
+    for (final e in appTextEntries) {
+      _textCtl[e.key]?.text = e.defaultValue;
+    }
+    await _saveTexts();
   }
 
   Widget _settingsTab() {

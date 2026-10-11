@@ -2,6 +2,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'models/app_texts.dart';
+import 'services/app_texts_service.dart';
 import 'theme/qand_theme.dart';
 import 'services/push_service.dart';
 import 'services/supabase_service.dart';
@@ -23,15 +25,23 @@ Future<void> main() async {
   ));
   // اگر کلید سوپابیس داده شده باشد وصل شو، وگرنه آفلاین ادامه بده
   await SupabaseService.initIfConfigured();
+  // متن‌های قابل‌ویرایش (مدیر از پنل عوض می‌کند) — اگر خطا داد، پیش‌فرض‌ها
+  final textsNotifier = AppTextsNotifier();
+  try {
+    textsNotifier.replaceAll(await AppTextsService().load());
+  } catch (_) {
+    textsNotifier.fillDefaults();
+  }
   // هندلر بک‌گراند FCM (بدون فایربیس نادیده گرفته می‌شود، اپ کرش نمی‌کند)
   try {
     FirebaseMessaging.onBackgroundMessage(fcmBackgroundHandler);
   } catch (_) {}
-  runApp(const QandApp());
+  runApp(QandApp(texts: textsNotifier));
 }
 
 class QandApp extends StatelessWidget {
-  const QandApp({super.key});
+  final AppTextsNotifier texts;
+  const QandApp({super.key, required this.texts});
 
   @override
   Widget build(BuildContext context) {
@@ -48,16 +58,24 @@ class QandApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       builder: (context, child) {
-        // سقف اندازه فونت سیستم تا با بزرگ‌نمایی زیاد، چیدمان به‌هم نریزد.
-        // پدینگ سیستم (ناچ/نویگیشن) دست‌نخورده می‌ماند تا SafeArea درست کار کند.
-        final mq = MediaQuery.of(context);
-        final clamped = mq.textScaler.clamp(
-            minScaleFactor: 0.8, maxScaleFactor: 1.3);
-        return MediaQuery(
-          data: mq.copyWith(textScaler: clamped),
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: child!,
+        // متن‌های قابل‌ویرایش دور کل اپ (تغییرشان همه صفحه‌ها را تازه می‌کند).
+        return AppTexts(
+          notifier: texts,
+          child: Builder(
+            builder: (inner) {
+              // سقف اندازه فونت سیستم تا با بزرگ‌نمایی زیاد، چیدمان به‌هم نریزد.
+              // پدینگ سیستم (ناچ/نویگیشن) دست‌نخورده می‌ماند تا SafeArea درست کار کند.
+              final mq = MediaQuery.of(inner);
+              final clamped = mq.textScaler.clamp(
+                  minScaleFactor: 0.8, maxScaleFactor: 1.3);
+              return MediaQuery(
+                data: mq.copyWith(textScaler: clamped),
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: child!,
+                ),
+              );
+            },
           ),
         );
       },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/app_config.dart';
+import '../models/app_texts.dart';
 import '../theme/qand_theme.dart';
 import '../services/auth_service.dart';
 import '../services/cart_service.dart';
@@ -143,6 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _homeBody() {
+    final T = AppTexts.of(context);
     final width = MediaQuery.sizeOf(context).width;
     final topPad = topSafeOnly(context, extra: 40);
     return SingleChildScrollView(
@@ -154,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Expanded(
-                child: Text('سلام ${widget.username} 👋',
+                child: Text('${T.t('home.greeting')} ${widget.username} 👋',
                     style:
                         const TextStyle(color: Colors.white, fontSize: 18),
                     overflow: TextOverflow.ellipsis),
@@ -166,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     CircleAvatar(
                       backgroundColor: Colors.white24,
                       child: IconButton(
-                        tooltip: 'سبد خرید',
+                        tooltip: T.t('home.cart_tooltip'),
                         onPressed: _openCart,
                         icon: const Icon(Icons.shopping_cart_outlined,
                             color: Colors.white),
@@ -194,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 CircleAvatar(
                   backgroundColor: Colors.white24,
                   child: IconButton(
-                    tooltip: 'پیگیری سفارش‌ها',
+                    tooltip: T.t('home.notifications_tooltip'),
                     onPressed: () => setState(() => _tab = 1),
                     icon: const Icon(Icons.notifications_none,
                         color: Colors.white),
@@ -203,8 +205,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ]),
             ]),
             const SizedBox(height: 6),
-            const Text('امروز چی برات بپزم؟',
-                style: TextStyle(
+            Text(T.t('home.headline'),
+                style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.w900)),
@@ -248,13 +250,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       margin: const EdgeInsets.symmetric(vertical: 10),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(20)),
-                      child: const Text(
-                          '🛒 فعلاً محصولی برای فروش فعال نیست؛ بعداً سر بزن.',
-                          style: TextStyle(fontSize: 13)),
-                    ),
+                       decoration: BoxDecoration(
+                           color: Colors.amber.shade50,
+                           borderRadius: BorderRadius.circular(20)),
+                       child: Text(
+                           T.t('home.no_products'),
+                           style: const TextStyle(fontSize: 13)),
+                     ),
                   const SizedBox(height: 4),
                   SizedBox(
                     width: double.infinity,
@@ -265,9 +267,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               builder: (_) => CustomCakeScreen(
                                   username: widget.username))).then(
                           (_) => _refreshCartCount()),
-                      icon: const Icon(Icons.cake),
-                      label: const Text('کیک تولد سفارشی بساز 🎂'),
-                    ),
+                       icon: const Icon(Icons.cake),
+                       label: Text(T.t('home.custom_cake_button')),
+                     ),
                   ),
                 ]),
               ),
@@ -280,12 +282,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// کارت‌های شاخه‌های اصلی سفارش (داینامیک؛ ۲ ستونه) — هر کدام به لیست محصولاتش می‌رود.
   Widget _categoryGrid(double width) {
+    final T = AppTexts.of(context);
     if (_mainCategories.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Text('هنوز شاخه‌ای ثبت نشده 🍰',
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(T.t('home.no_branches'),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.black54)),
+            style: const TextStyle(fontSize: 13, color: Colors.black54)),
       );
     }
     final crossAxis = width < 360 ? 2 : 2;
