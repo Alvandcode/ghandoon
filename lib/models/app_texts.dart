@@ -113,20 +113,6 @@ const List<AppTextEntry> appTextEntries = [
     required: true,
   ),
   AppTextEntry(
-    key: 'cake.flavor_title',
-    label: 'کیک‌ساز — عنوان بخش طعم',
-    defaultValue: 'طعم کیک',
-    group: 'کیک تولد سفارشی',
-    required: true,
-  ),
-  AppTextEntry(
-    key: 'cake.filling_title',
-    label: 'کیک‌ساز — عنوان بخش فیلینگ',
-    defaultValue: 'فیلینگ',
-    group: 'کیک تولد سفارشی',
-    required: true,
-  ),
-  AppTextEntry(
     key: 'cake.text_label',
     label: 'کیک‌ساز — برچسب «متن روی کیک»',
     defaultValue: 'متن روی کیک (اختیاری)',

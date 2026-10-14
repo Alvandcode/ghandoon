@@ -22,6 +22,7 @@ import '../widgets/safe_scaffold.dart';
 import '../widgets/branch_image_picker.dart';
 import 'chat_screen.dart';
 import 'product_edit_screen.dart';
+import 'cake_config_tab.dart';
 
 class AdminScreen extends StatefulWidget {
   final String username;
@@ -70,7 +71,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 5, vsync: this);
+    _tab = TabController(length: 6, vsync: this);
     _load();
   }
 
@@ -419,6 +420,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
             Tab(text: 'پیام‌ها'),
             Tab(text: 'محصولات'),
             Tab(text: 'متن‌ها'),
+            Tab(text: 'کیک سفارشی'),
             Tab(text: 'تنظیمات'),
           ],
         ),
@@ -428,6 +430,7 @@ class _AdminScreenState extends State<AdminScreen> with SingleTickerProviderStat
         _messagesTab(),
         _productsTab(),
         _textsTab(),
+        CakeConfigTab(onSaved: _load),
         _settingsTab()
       ]),
     );

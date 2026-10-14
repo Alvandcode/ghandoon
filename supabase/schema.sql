@@ -94,6 +94,8 @@ alter table app_settings add column if not exists main_categories text default '
 alter table app_settings add column if not exists branch_images text default '{}';
 -- متن‌های قابل‌ویرایش صفحه‌ها (JSON object مثل {"home.headline":"..."}؛ کلیدها ثابت‌اند)
 alter table app_settings add column if not exists app_texts text default '{}';
+-- ساختار کیک تولد سفارشی (بخش‌ها/گزینه‌ها/زیرشاخه‌ها + وزن و قیمت)
+alter table app_settings add column if not exists cake_config text default '{}';
 -- عکس صفحه توضیحات محصول
 alter table products add column if not exists detail_image_url text;
 -- دسته دیگر به ۴ مقدار قدیمی قفل نیست؛ عنوان از تنظیمات مدیر می‌آید.

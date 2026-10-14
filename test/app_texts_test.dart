@@ -79,16 +79,19 @@ void main() {
           child: MaterialApp(home: child),
         );
 
-    testWidgets('عنوان و متن‌های بخش‌ها از متن‌های سفارشی می‌آید',
-        (tester) async {
+    testWidgets('عنوان و متن‌ها از متن‌های سفارشی می‌آید', (tester) async {
       final n = AppTextsNotifier();
       n.replaceAll({
         'cake.title': 'کیک تولد خانگی شما 🎉',
         'cake.weight_title': 'چقدر کیک؟',
-        'cake.flavor_title': 'طعم دلخواه',
-        'cake.filling_title': 'داخل کیک',
+        'cake.text_label': 'روی کیک بنویس',
         'cake.add_button': 'بگذارش توی سبد',
       });
+
+      // صفحه بلند تا همه بخش‌ها بدون اسکرول رندر شوند
+      tester.view.physicalSize = const Size(1000, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
           wrap(n, const CustomCakeScreen(username: 'tester')));
@@ -96,28 +99,27 @@ void main() {
 
       expect(find.text('کیک تولد خانگی شما 🎉'), findsOneWidget);
       expect(find.text('چقدر کیک؟'), findsOneWidget);
-      expect(find.text('طعم دلخواه'), findsOneWidget);
-      expect(find.text('داخل کیک'), findsOneWidget);
+      expect(find.text('روی کیک بنویس'), findsOneWidget);
     });
 
     testWidgets('خلاصه سفارش از متن‌های مدیر ساخته می‌شود', (tester) async {
       final n = AppTextsNotifier();
       n.replaceAll({
         'cake.summary_prefix': 'کیک',
-        'cake.summary_middle': 'با فیلینگ',
         'cake.weight_unit': 'کیلوگرم',
+        'cake.summary_text_label': 'روی کیک:',
       });
+
+      tester.view.physicalSize = const Size(1000, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
           wrap(n, const CustomCakeScreen(username: 'tester')));
       await tester.pumpAndSettle();
 
-      // خلاصه داخل کارت پایین صفحه باید شامل متن‌های سفارشی باشد
-      expect(
-        find.textContaining('با فیلینگ'),
-        findsWidgets,
-      );
-      expect(find.textContaining('کیلوگرم'), findsWidgets);
+      // وزن پیش‌فرض اولین وزن (۱ کیلو) است و خلاصه داخل کارت پایین صفحه
+      expect(find.textContaining('کیک 1 کیلوگرم'), findsOneWidget);
     });
   });
 }
